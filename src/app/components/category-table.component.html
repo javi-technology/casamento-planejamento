@@ -1,0 +1,145 @@
+<section class="card">
+  <div
+    class="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center"
+  >
+    <div>
+      <p class="text-xs font-bold uppercase tracking-[0.18em] text-blush-600">
+        Planejamento
+      </p>
+      <h2 class="mt-1 text-xl font-bold text-slate-900">
+        Distribuição por categoria
+      </h2>
+    </div>
+    <button
+      class="button-secondary"
+      type="button"
+      (click)="showAddForm = !showAddForm"
+    >
+      {{ showAddForm ? 'Cancelar' : '+ Adicionar categoria' }}
+    </button>
+  </div>
+
+  @if (showAddForm) {
+    <div
+      class="mb-5 grid gap-3 rounded-xl bg-blush-50 p-4 sm:grid-cols-[1fr_9rem_auto_auto] sm:items-end"
+    >
+      <label class="text-sm font-medium text-slate-700">
+        Nome
+        <input
+          class="field mt-1 bg-white"
+          [(ngModel)]="newCategoryName"
+          placeholder="Ex.: Lua de mel"
+        />
+      </label>
+      <label class="text-sm font-medium text-slate-700">
+        Percentual
+        <input
+          class="field mt-1 bg-white"
+          type="number"
+          [(ngModel)]="newCategoryPct"
+          min="0"
+          step="0.5"
+        />
+      </label>
+      <label class="flex items-center gap-2 pb-2 text-sm text-slate-700">
+        <input type="checkbox" [(ngModel)]="newCategoryPerGuest" />
+        Por convidado
+      </label>
+      <button class="button-primary" type="button" (click)="addCategory()">
+        Adicionar
+      </button>
+    </div>
+  }
+
+  @if (store.suggestedPctTotal() !== 100) {
+    <div
+      class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+    >
+      A soma dos percentuais sugeridos é
+      <strong>{{ store.suggestedPctTotal() | number: '1.0-2' }}%</strong>.
+      Ajuste para chegar a 100%.
+    </div>
+  }
+
+  <div class="overflow-x-auto">
+    <table class="min-w-[980px] w-full text-left text-sm">
+      <thead
+        class="border-b border-stone-200 text-xs uppercase tracking-wide text-slate-500"
+      >
+        <tr>
+          <th class="px-3 py-3 font-semibold">Categoria</th>
+          <th class="px-3 py-3 font-semibold">% sugerido</th>
+          <th class="px-3 py-3 font-semibold">Orçamento sugerido</th>
+          <th class="px-3 py-3 font-semibold">Por convidado</th>
+          <th class="px-3 py-3 font-semibold">Estimado</th>
+          <th class="px-3 py-3 font-semibold">Contratado</th>
+          <th class="px-3 py-3 font-semibold">Pago</th>
+          <th class="px-3 py-3 font-semibold">Diferença</th>
+          <th class="w-32 px-3 py-3 font-semibold">Progresso</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-stone-100">
+        @for (row of store.categorySummaries(); track row.id) {
+          <tr class="align-middle hover:bg-stone-50">
+            <td class="px-3 py-3 font-semibold text-slate-800">
+              {{ row.name }}
+            </td>
+            <td class="px-3 py-3">
+              <input
+                class="w-20 rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5 text-right"
+                type="number"
+                [ngModel]="row.suggestedPct"
+                (ngModelChange)="updatePct(row.id, $event)"
+                min="0"
+                step="0.5"
+              />
+              <label
+                class="mt-1 flex items-center gap-1 text-[11px] text-slate-500"
+              >
+                <input
+                  type="checkbox"
+                  [ngModel]="row.perGuest"
+                  (ngModelChange)="updatePerGuest(row.id, $event)"
+                />
+                por convidado
+              </label>
+            </td>
+            <td class="px-3 py-3 font-medium">
+              {{ row.suggested | currency: 'BRL' }}
+            </td>
+            <td class="px-3 py-3 text-slate-600">
+              @if (row.perGuest) {
+                {{ row.perGuestAmount | currency: 'BRL' }}
+              } @else {
+                —
+              }
+            </td>
+            <td class="px-3 py-3">{{ row.estimated | currency: 'BRL' }}</td>
+            <td class="px-3 py-3 font-semibold">
+              {{ row.contracted | currency: 'BRL' }}
+            </td>
+            <td class="px-3 py-3">{{ row.paid | currency: 'BRL' }}</td>
+            <td
+              class="px-3 py-3 font-semibold"
+              [class.text-emerald-600]="row.difference >= 0"
+              [class.text-rose-600]="row.difference < 0"
+            >
+              {{ row.difference | currency: 'BRL' }}
+            </td>
+            <td class="px-3 py-3">
+              <div class="h-2 overflow-hidden rounded-full bg-stone-200">
+                <div
+                  class="h-full rounded-full bg-blush-500 transition-all"
+                  [style.width.%]="row.progress"
+                ></div>
+              </div>
+              <span class="mt-1 block text-[11px] text-slate-500">
+                {{ row.progress | number: '1.0-0' }}%
+              </span>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

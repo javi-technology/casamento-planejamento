@@ -1,11 +1,91 @@
-import { Component } from '@angular/core';
+import { CommonModule, CurrencyPipe } from '@angular/common';
+import { Component, ElementRef, ViewChild, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { BudgetStore } from './budget-store.service';
+import { CategoryTableComponent } from './components/category-table.component';
+import { ExpenseSectionComponent } from './components/expense-section.component';
+import { WeddingBudget } from './models';
 
 @Component({
   selector: 'app-root',
-  imports: [],
+  standalone: true,
+  imports: [
+    CategoryTableComponent,
+    CommonModule,
+    CurrencyPipe,
+    ExpenseSectionComponent,
+    FormsModule,
+  ],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
+  styleUrl: './app.component.css',
 })
 export class AppComponent {
-  title = 'casamento-gastos';
+  readonly store = inject(BudgetStore);
+  @ViewChild('importInput') importInput?: ElementRef<HTMLInputElement>;
+  showClearConfirmation = false;
+  importError = '';
+
+  updateGuests(value: string | number): void {
+    this.store.updateParameters({
+      guests: this.parseNumber(value, false) || 1,
+    });
+  }
+
+  updateMaxBudget(value: string | number): void {
+    this.store.updateParameters({ maxBudget: this.parseNumber(value) });
+  }
+
+  exportJson(): void {
+    const blob = new Blob([JSON.stringify(this.store.budget(), null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'gastos-do-casamento.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  openImport(): void {
+    this.importInput?.nativeElement.click();
+  }
+
+  importJson(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        this.store.replaceBudget(
+          JSON.parse(String(reader.result)) as WeddingBudget,
+        );
+        this.importError = '';
+      } catch {
+        this.importError = 'Não foi possível importar o arquivo JSON.';
+      } finally {
+        input.value = '';
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  confirmClear(): void {
+    this.store.clear();
+    this.showClearConfirmation = false;
+  }
+
+  private parseNumber(value: string | number, allowThousands = true): number {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    const normalized = allowThousands
+      ? value.replace(/\./g, '').replace(',', '.')
+      : value.replace(',', '.');
+    return Number(normalized) || 0;
+  }
 }
