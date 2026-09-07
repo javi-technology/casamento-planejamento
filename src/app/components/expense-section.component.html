@@ -19,6 +19,14 @@
     </label>
   </div>
 
+  @if (contractError) {
+    <div
+      class="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+    >
+      {{ contractError }}
+    </div>
+  }
+
   <div class="mb-6 rounded-2xl bg-slate-50 p-4">
     <h3 class="mb-3 text-sm font-bold text-slate-800">Adicionar fornecedor</h3>
     <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -179,6 +187,48 @@
                 </p>
               </div>
             </div>
+            <div class="min-w-44 text-sm">
+              <p class="text-xs text-slate-500">Contrato</p>
+              @if (expense.contract) {
+                <div class="mt-1 flex flex-wrap items-center gap-2">
+                  <button
+                    class="font-semibold text-blush-600 hover:text-blush-500"
+                    type="button"
+                    (click)="viewContract(expense.id)"
+                  >
+                    Ver contrato
+                  </button>
+                  <button
+                    class="text-xs text-rose-600 hover:underline"
+                    type="button"
+                    (click)="requestRemoveContract(expense.id)"
+                  >
+                    Remover
+                  </button>
+                </div>
+                <p class="mt-1 truncate text-xs text-slate-500">
+                  {{ expense.contract.fileName }} ·
+                  {{ contractSize(expense.contract.size) }}
+                </p>
+              } @else {
+                <label
+                  class="mt-1 inline-flex cursor-pointer items-center rounded-lg border border-dashed border-stone-300 px-2 py-1.5 text-xs font-semibold text-slate-600 hover:border-blush-400 hover:text-blush-600"
+                >
+                  <input
+                    class="hidden"
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    [disabled]="uploadingId === expense.id"
+                    (change)="uploadContract(expense.id, $event)"
+                  />
+                  {{
+                    uploadingId === expense.id
+                      ? 'Enviando…'
+                      : 'Anexar contrato (PDF)'
+                  }}
+                </label>
+              }
+            </div>
             <div class="flex gap-2">
               <button
                 class="button-secondary px-3"
@@ -198,6 +248,64 @@
           </div>
         }
       }
+    </div>
+  }
+
+  @if (expensePendingDeletion) {
+    <div
+      class="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/40 p-4"
+    >
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-slate-900">Remover fornecedor?</h3>
+        <p class="mt-2 text-sm text-slate-600">
+          O fornecedor e seu contrato serão removidos do planejamento.
+        </p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button
+            class="button-secondary"
+            type="button"
+            (click)="expensePendingDeletion = null"
+          >
+            Cancelar
+          </button>
+          <button
+            class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+            type="button"
+            (click)="confirmDeleteExpense()"
+          >
+            Remover
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (contractPendingDeletion) {
+    <div
+      class="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/40 p-4"
+    >
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-slate-900">Remover contrato?</h3>
+        <p class="mt-2 text-sm text-slate-600">
+          O arquivo PDF será removido permanentemente.
+        </p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button
+            class="button-secondary"
+            type="button"
+            (click)="contractPendingDeletion = null"
+          >
+            Cancelar
+          </button>
+          <button
+            class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+            type="button"
+            (click)="confirmRemoveContract()"
+          >
+            Remover
+          </button>
+        </div>
+      </div>
     </div>
   }
 </section>

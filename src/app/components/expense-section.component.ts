@@ -2,6 +2,7 @@ import { CommonModule, CurrencyPipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BudgetStore } from '../budget-store.service';
+import { ApiService } from '../core/api.service';
 import { Expense } from '../models';
 
 interface ExpenseDraft {
@@ -30,10 +31,15 @@ const emptyDraft = (): ExpenseDraft => ({
 })
 export class ExpenseSectionComponent {
   readonly store = inject(BudgetStore);
+  readonly api = inject(ApiService);
   readonly newExpense = emptyDraft();
   filterCategory = '';
   editingId: string | null = null;
   editDraft = emptyDraft();
+  uploadingId: string | null = null;
+  expensePendingDeletion: string | null = null;
+  contractPendingDeletion: string | null = null;
+  contractError = '';
 
   get filteredExpenses(): Expense[] {
     const expenses = this.store.budget().expenses;
@@ -99,9 +105,82 @@ export class ExpenseSectionComponent {
   }
 
   deleteExpense(id: string): void {
-    if (window.confirm('Remover este fornecedor?')) {
-      this.store.deleteExpense(id);
+    this.expensePendingDeletion = id;
+  }
+
+  confirmDeleteExpense(): void {
+    if (this.expensePendingDeletion) {
+      this.store.deleteExpense(this.expensePendingDeletion);
+      this.expensePendingDeletion = null;
     }
+  }
+
+  uploadContract(id: string, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    if (file.type !== 'application/pdf') {
+      this.contractError = 'Selecione um arquivo PDF.';
+      return;
+    }
+
+    this.contractError = '';
+    this.uploadingId = id;
+    this.api.uploadContract(id, file).subscribe({
+      next: ({ contract }) => {
+        const expense = this.store
+          .budget()
+          .expenses.find((item) => item.id === id);
+        if (expense) {
+          this.store.applyExpense({ ...expense, contract });
+        }
+        this.uploadingId = null;
+      },
+      error: () => {
+        this.contractError = 'Não foi possível anexar o contrato.';
+        this.uploadingId = null;
+      },
+    });
+  }
+
+  viewContract(id: string): void {
+    this.api.openContract(id);
+  }
+
+  requestRemoveContract(id: string): void {
+    this.contractPendingDeletion = id;
+  }
+
+  confirmRemoveContract(): void {
+    const id = this.contractPendingDeletion;
+    if (!id) {
+      return;
+    }
+    this.api.deleteContract(id).subscribe({
+      next: () => {
+        const expense = this.store
+          .budget()
+          .expenses.find((item) => item.id === id);
+        if (expense) {
+          this.store.applyExpense({ ...expense, contract: undefined });
+        }
+        this.contractPendingDeletion = null;
+      },
+      error: () => {
+        this.contractError = 'Não foi possível remover o contrato.';
+        this.contractPendingDeletion = null;
+      },
+    });
+  }
+
+  contractSize(size: number): string {
+    if (size < 1024 * 1024) {
+      return `${Math.max(1, Math.round(size / 1024))} KB`;
+    }
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   private parseNumber(value: string): number {
