@@ -1,4 +1,6 @@
-import { Injectable, computed, effect, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { ApiService } from './core/api.service';
 import {
   Category,
   CategorySummary,
@@ -9,7 +11,7 @@ import {
 
 export const STORAGE_KEY = 'casamento-gastos:v1';
 
-const initialBudget = (): WeddingBudget => ({
+export const createDefaultBudget = (): WeddingBudget => ({
   guests: 100,
   maxBudget: 50_000,
   categories: DEFAULT_CATEGORIES.map((category) => ({ ...category })),
@@ -18,7 +20,15 @@ const initialBudget = (): WeddingBudget => ({
 
 @Injectable({ providedIn: 'root' })
 export class BudgetStore {
-  readonly budget = signal<WeddingBudget>(this.load());
+  private readonly api = inject(ApiService);
+  private budgetSaveTimer?: ReturnType<typeof setTimeout>;
+  private loaded = false;
+  private loadedUserId: string | null = null;
+
+  readonly budget = signal<WeddingBudget>(createDefaultBudget());
+  readonly saving = signal(false);
+  readonly error = signal('');
+  readonly migrationCandidate = signal<WeddingBudget | null>(null);
 
   readonly totalEstimated = computed(() =>
     this.budget().expenses.reduce(
@@ -77,27 +87,42 @@ export class BudgetStore {
     ),
   );
 
-  constructor() {
-    effect(() => {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.budget()));
+  async load(userId?: string): Promise<void> {
+    if (this.loaded && this.loadedUserId === (userId ?? null)) {
+      return;
+    }
+
+    this.loaded = true;
+    this.loadedUserId = userId ?? null;
+    this.error.set('');
+    try {
+      const budget = await firstValueFrom(this.api.getBudget());
+      this.budget.set(budget);
+      if (budget.expenses.length === 0) {
+        this.findMigrationCandidate();
       }
-    });
+    } catch {
+      this.loaded = false;
+      this.loadedUserId = null;
+      this.error.set('Não foi possível carregar o planejamento.');
+    }
   }
 
   updateParameters(
     changes: Partial<Pick<WeddingBudget, 'guests' | 'maxBudget'>>,
   ): void {
-    this.update((budget) => ({ ...budget, ...changes }));
+    this.budget.update((budget) => ({ ...budget, ...changes }));
+    this.scheduleBudgetSave();
   }
 
   updateCategory(id: string, changes: Partial<Category>): void {
-    this.update((budget) => ({
+    this.budget.update((budget) => ({
       ...budget,
       categories: budget.categories.map((category) =>
         category.id === id ? { ...category, ...changes } : category,
       ),
     }));
+    this.scheduleBudgetSave();
   }
 
   addCategory(name: string, suggestedPct = 0, perGuest = false): void {
@@ -107,81 +132,148 @@ export class BudgetStore {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')}-${Date.now()}`;
-    this.update((budget) => ({
+    this.budget.update((budget) => ({
       ...budget,
       categories: [
         ...budget.categories,
         { id, name: name.trim(), suggestedPct, perGuest },
       ],
     }));
+    this.scheduleBudgetSave();
   }
 
   addExpense(expense: Omit<Expense, 'id'>): void {
-    this.update((budget) => ({
-      ...budget,
-      expenses: [...budget.expenses, { ...expense, id: crypto.randomUUID() }],
-    }));
+    this.saving.set(true);
+    this.api.createExpense(expense).subscribe({
+      next: (saved) => {
+        this.budget.update((budget) => ({
+          ...budget,
+          expenses: [...budget.expenses, saved],
+        }));
+        this.saving.set(false);
+      },
+      error: () => this.handleError('Não foi possível adicionar o fornecedor.'),
+    });
   }
 
   updateExpense(id: string, changes: Partial<Expense>): void {
-    this.update((budget) => ({
+    this.saving.set(true);
+    this.api.updateExpense(id, changes).subscribe({
+      next: (updated) => this.applyExpense(updated),
+      error: () => this.handleError('Não foi possível atualizar o fornecedor.'),
+    });
+  }
+
+  applyExpense(expense: Expense): void {
+    this.budget.update((budget) => ({
       ...budget,
-      expenses: budget.expenses.map((expense) =>
-        expense.id === id ? { ...expense, ...changes } : expense,
+      expenses: budget.expenses.map((current) =>
+        current.id === expense.id ? expense : current,
       ),
     }));
+    this.saving.set(false);
   }
 
   deleteExpense(id: string): void {
-    this.update((budget) => ({
-      ...budget,
-      expenses: budget.expenses.filter((expense) => expense.id !== id),
-    }));
+    this.saving.set(true);
+    this.api.deleteExpense(id).subscribe({
+      next: () => {
+        this.budget.update((budget) => ({
+          ...budget,
+          expenses: budget.expenses.filter((expense) => expense.id !== id),
+        }));
+        this.saving.set(false);
+      },
+      error: () => this.handleError('Não foi possível excluir o fornecedor.'),
+    });
   }
 
-  replaceBudget(budget: WeddingBudget): void {
-    this.budget.set(this.sanitize(budget));
-  }
-
-  clear(): void {
-    this.budget.set(initialBudget());
-  }
-
-  private update(updater: (budget: WeddingBudget) => WeddingBudget): void {
-    this.budget.update(updater);
-  }
-
-  private load(): WeddingBudget {
-    if (typeof localStorage === 'undefined') {
-      return initialBudget();
-    }
-
+  async replaceBudget(budget: WeddingBudget): Promise<void> {
+    this.saving.set(true);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored
-        ? this.sanitize(JSON.parse(stored) as WeddingBudget)
-        : initialBudget();
+      const saved = await firstValueFrom(this.api.importBudget(budget));
+      this.budget.set(saved);
+      this.saving.set(false);
     } catch {
-      return initialBudget();
+      this.handleError('Não foi possível importar o planejamento.');
     }
   }
 
-  private sanitize(value: WeddingBudget): WeddingBudget {
-    const fallback = initialBudget();
-    return {
-      guests:
-        Number.isFinite(value?.guests) && value.guests > 0
-          ? value.guests
-          : fallback.guests,
-      maxBudget:
-        Number.isFinite(value?.maxBudget) && value.maxBudget >= 0
-          ? value.maxBudget
-          : fallback.maxBudget,
-      categories: Array.isArray(value?.categories)
-        ? value.categories
-        : fallback.categories,
-      expenses: Array.isArray(value?.expenses) ? value.expenses : [],
-    };
+  async clear(): Promise<void> {
+    await this.replaceBudget(createDefaultBudget());
+  }
+
+  async importLegacy(): Promise<void> {
+    const candidate = this.migrationCandidate();
+    if (!candidate) {
+      return;
+    }
+    this.removeLegacyData();
+    this.migrationCandidate.set(null);
+    await this.replaceBudget(candidate);
+  }
+
+  discardLegacy(): void {
+    this.removeLegacyData();
+    this.migrationCandidate.set(null);
+  }
+
+  private scheduleBudgetSave(): void {
+    if (this.budgetSaveTimer) {
+      clearTimeout(this.budgetSaveTimer);
+    }
+    this.saving.set(true);
+    this.budgetSaveTimer = setTimeout(async () => {
+      try {
+        const saved = await firstValueFrom(
+          this.api.updateBudget({
+            guests: this.budget().guests,
+            maxBudget: this.budget().maxBudget,
+            categories: this.budget().categories,
+          }),
+        );
+        this.budget.update((budget) => ({
+          ...budget,
+          guests: saved.guests,
+          maxBudget: saved.maxBudget,
+          categories: saved.categories,
+        }));
+        this.saving.set(false);
+      } catch {
+        this.handleError('Não foi possível salvar os parâmetros.');
+      }
+    }, 500);
+  }
+
+  private findMigrationCandidate(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
+      return;
+    }
+    try {
+      const candidate = JSON.parse(stored) as WeddingBudget;
+      if (
+        candidate &&
+        Array.isArray(candidate.categories) &&
+        Array.isArray(candidate.expenses)
+      ) {
+        this.migrationCandidate.set(candidate);
+      }
+    } catch {
+      this.removeLegacyData();
+    }
+  }
+
+  private removeLegacyData(): void {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  private handleError(message: string): void {
+    this.saving.set(false);
+    this.error.set(message);
   }
 
   private sum(

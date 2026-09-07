@@ -1,0 +1,31 @@
+{
+  "name": "casamento-api",
+  "version": "1.0.0",
+  "private": true,
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "serve": "npm run build && firebase emulators:start --only functions"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "express": "^4.21.0",
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/busboy": "^1.5.4",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.0.0",
+    "@types/supertest": "^7.2.1",
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.11",
+    "typescript": "^5.7.2"
+  }
+}

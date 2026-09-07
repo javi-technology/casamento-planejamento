@@ -1,45 +1,4 @@
-export interface Category {
-  id: string;
-  name: string;
-  suggestedPct: number;
-  perGuest: boolean;
-}
-
-export interface Expense {
-  id: string;
-  categoryId: string;
-  supplier: string;
-  description?: string;
-  estimated: number;
-  contracted: number;
-  paid: number;
-  contract?: ContractMetadata;
-}
-
-export interface ContractMetadata {
-  path: string;
-  fileName: string;
-  contentType: string;
-  size: number;
-  uploadedAt: string;
-}
-
-export interface WeddingBudget {
-  guests: number;
-  maxBudget: number;
-  categories: Category[];
-  expenses: Expense[];
-}
-
-export interface CategorySummary extends Category {
-  suggested: number;
-  perGuestAmount: number;
-  estimated: number;
-  contracted: number;
-  paid: number;
-  difference: number;
-  progress: number;
-}
+import { Category, WeddingBudget } from './types';
 
 export const DEFAULT_CATEGORIES: Category[] = [
   {
@@ -101,3 +60,10 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'aliancas', name: 'Alianças', suggestedPct: 3, perGuest: false },
   { id: 'outros', name: 'Outros', suggestedPct: 2, perGuest: false },
 ];
+
+export const DEFAULT_BUDGET = (): WeddingBudget => ({
+  guests: 100,
+  maxBudget: 50_000,
+  categories: DEFAULT_CATEGORIES.map((category) => ({ ...category })),
+  expenses: [],
+});

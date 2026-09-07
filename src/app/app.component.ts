@@ -1,9 +1,16 @@
 import { CommonModule, CurrencyPipe } from '@angular/common';
-import { Component, ElementRef, ViewChild, inject } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  ViewChild,
+  effect,
+  inject,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BudgetStore } from './budget-store.service';
 import { CategoryTableComponent } from './components/category-table.component';
 import { ExpenseSectionComponent } from './components/expense-section.component';
+import { AuthService } from './core/auth.service';
 import { WeddingBudget } from './models';
 
 @Component({
@@ -21,9 +28,18 @@ import { WeddingBudget } from './models';
 })
 export class AppComponent {
   readonly store = inject(BudgetStore);
+  readonly auth = inject(AuthService);
   @ViewChild('importInput') importInput?: ElementRef<HTMLInputElement>;
   showClearConfirmation = false;
   importError = '';
+
+  constructor() {
+    effect(() => {
+      if (this.auth.ready() && this.auth.user()) {
+        void this.store.load(this.auth.user()?.uid);
+      }
+    });
+  }
 
   updateGuests(value: string | number): void {
     this.store.updateParameters({
@@ -61,7 +77,7 @@ export class AppComponent {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        this.store.replaceBudget(
+        void this.store.replaceBudget(
           JSON.parse(String(reader.result)) as WeddingBudget,
         );
         this.importError = '';
@@ -75,7 +91,7 @@ export class AppComponent {
   }
 
   confirmClear(): void {
-    this.store.clear();
+    void this.store.clear();
     this.showClearConfirmation = false;
   }
 
