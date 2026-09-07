@@ -1,0 +1,13 @@
+{
+  "hosting": {
+    "site": "casamentoplanejamentojavi",
+    "public": "dist/casamento-gastos/browser",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
