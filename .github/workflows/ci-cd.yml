@@ -99,6 +99,10 @@ jobs:
           name: functions-lib
           path: functions/lib
 
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
