@@ -23,7 +23,7 @@ export class AuthService {
     try {
       const response = await firstValueFrom(this.api.login(email));
       this.email.set(response.email);
-      localStorage.setItem(EMAIL_STORAGE_KEY, response.email);
+      this.storeEmail(response.email);
       return true;
     } catch (error) {
       const httpError = error as HttpErrorResponse;
@@ -53,14 +53,30 @@ export class AuthService {
   }
 
   clearStoredEmail(): void {
-    localStorage.removeItem(EMAIL_STORAGE_KEY);
+    this.removeStoredEmail();
     this.email.set(null);
   }
 
   private readStoredEmail(): string | null {
-    if (typeof localStorage === 'undefined') {
+    try {
+      if (typeof localStorage === 'undefined') {
+        return null;
+      }
+      return localStorage.getItem(EMAIL_STORAGE_KEY);
+    } catch {
       return null;
     }
-    return localStorage.getItem(EMAIL_STORAGE_KEY);
+  }
+
+  private storeEmail(email: string): void {
+    try {
+      localStorage.setItem(EMAIL_STORAGE_KEY, email);
+    } catch {}
+  }
+
+  private removeStoredEmail(): void {
+    try {
+      localStorage.removeItem(EMAIL_STORAGE_KEY);
+    } catch {}
   }
 }

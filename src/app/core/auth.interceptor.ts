@@ -16,7 +16,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
   return next(authenticated).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 403) {
+      if (error.status === 403 && auth.email() === email) {
         auth.markUnauthorized();
       }
       return throwError(() => error);
