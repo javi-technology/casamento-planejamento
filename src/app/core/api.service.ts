@@ -7,8 +7,12 @@ import { Expense, WeddingBudget } from '../models';
 export class ApiService {
   private readonly http = inject(HttpClient);
 
-  getMe(): Observable<{ uid: string; email: string }> {
-    return this.http.get<{ uid: string; email: string }>('/api/me');
+  login(email: string): Observable<{ email: string }> {
+    return this.http.post<{ email: string }>('/api/login', { email });
+  }
+
+  getMe(): Observable<{ email: string }> {
+    return this.http.get<{ email: string }>('/api/me');
   }
 
   getBudget(): Observable<WeddingBudget> {

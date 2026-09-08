@@ -1,6 +1,6 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, from, switchMap, throwError } from 'rxjs';
+import { catchError, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
@@ -9,13 +9,12 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   }
 
   const auth = inject(AuthService);
-  return from(auth.getIdToken()).pipe(
-    switchMap((token) => {
-      const authenticated = token
-        ? request.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
-        : request;
-      return next(authenticated);
-    }),
+  const email = auth.email();
+  const authenticated = email
+    ? request.clone({ setHeaders: { 'X-User-Email': email } })
+    : request;
+
+  return next(authenticated).pipe(
     catchError((error: HttpErrorResponse) => {
       if (error.status === 403) {
         auth.markUnauthorized();

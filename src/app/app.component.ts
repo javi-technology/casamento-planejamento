@@ -30,15 +30,23 @@ export class AppComponent {
   readonly store = inject(BudgetStore);
   readonly auth = inject(AuthService);
   @ViewChild('importInput') importInput?: ElementRef<HTMLInputElement>;
+  loginEmail = '';
   showClearConfirmation = false;
   importError = '';
 
   constructor() {
     effect(() => {
-      if (this.auth.ready() && this.auth.user()) {
-        void this.store.load(this.auth.user()?.uid);
+      if (this.auth.ready() && this.auth.email()) {
+        void this.store.load(this.auth.email() ?? undefined);
       }
     });
+  }
+
+  async submitLogin(): Promise<void> {
+    if (!this.loginEmail.trim()) {
+      return;
+    }
+    await this.auth.login(this.loginEmail);
   }
 
   updateGuests(value: string | number): void {

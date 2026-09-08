@@ -1,10 +1,7 @@
 import request from 'supertest';
 
-const mockVerifyIdToken = jest.fn();
-
 jest.mock('firebase-admin', () => ({
   initializeApp: jest.fn(),
-  auth: jest.fn(() => ({ verifyIdToken: mockVerifyIdToken })),
 }));
 jest.mock('firebase-admin/app', () => ({
   getApp: jest.fn(),
@@ -45,74 +42,91 @@ describe('auth helpers', () => {
   });
 });
 
-describe('API authentication and validation', () => {
+describe('API de login e autenticação', () => {
   beforeEach(() => {
     process.env.ALLOWED_EMAILS = 'permitido@example.com';
-    mockVerifyIdToken.mockReset();
   });
 
-  it('retorna 401 sem token', async () => {
-    const response = await request(app).get('/api/me');
-    expect(response.status).toBe(401);
-  });
-
-  it('retorna 401 quando o token é inválido', async () => {
-    mockVerifyIdToken.mockRejectedValue(new Error('invalid token'));
+  it('retorna 200 para e-mail autorizado', async () => {
     const response = await request(app)
-      .get('/api/me')
-      .set('Authorization', 'Bearer token');
-    expect(response.status).toBe(401);
+      .post('/api/login')
+      .send({ email: 'PERMITIDO@example.com' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ email: 'PERMITIDO@example.com' });
   });
 
   it('retorna 403 para e-mail não autorizado', async () => {
-    mockVerifyIdToken.mockResolvedValue({
-      uid: 'uid-1',
-      email: 'bloqueado@example.com',
-    });
+    const response = await request(app)
+      .post('/api/login')
+      .send({ email: 'bloqueado@example.com' });
+
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe('E-mail não autorizado');
+  });
+
+  it.each([{}, { email: 'invalido' }])(
+    'retorna 400 para e-mail ausente ou inválido',
+    async (body) => {
+      const response = await request(app).post('/api/login').send(body);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Bad Request');
+    },
+  );
+
+  it('ignora o cabeçalho Authorization', async () => {
     const response = await request(app)
       .get('/api/me')
-      .set('Authorization', 'Bearer token');
+      .set('Authorization', 'Bearer permitido@example.com');
+
+    expect(response.status).toBe(401);
+  });
+
+  it('retorna 401 quando falta o cabeçalho de e-mail', async () => {
+    const response = await request(app).get('/api/me');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({
+      error: 'Unauthorized',
+      message: 'Informe seu e-mail',
+    });
+  });
+
+  it('retorna 403 para e-mail não autorizado no cabeçalho', async () => {
+    const response = await request(app)
+      .get('/api/me')
+      .set('X-User-Email', 'bloqueado@example.com');
+
     expect(response.status).toBe(403);
     expect(response.body.message).toBe('E-mail não autorizado');
   });
 
   it('retorna os dados do usuário autorizado', async () => {
-    mockVerifyIdToken.mockResolvedValue({
-      uid: 'uid-1',
-      email: 'PERMITIDO@example.com',
-    });
     const response = await request(app)
       .get('/api/me')
-      .set('Authorization', 'Bearer token');
+      .set('X-User-Email', 'PERMITIDO@example.com');
+
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      uid: 'uid-1',
-      email: 'PERMITIDO@example.com',
-    });
+    expect(response.body).toEqual({ email: 'PERMITIDO@example.com' });
   });
 
   it('valida orçamento antes de acessar o banco', async () => {
-    mockVerifyIdToken.mockResolvedValue({
-      uid: 'uid-1',
-      email: 'permitido@example.com',
-    });
     const response = await request(app)
       .put('/api/budget')
-      .set('Authorization', 'Bearer token')
+      .set('X-User-Email', 'permitido@example.com')
       .send({ guests: 0, maxBudget: -1, categories: [] });
+
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Bad Request');
   });
 
   it('valida despesas antes de acessar o banco', async () => {
-    mockVerifyIdToken.mockResolvedValue({
-      uid: 'uid-1',
-      email: 'permitido@example.com',
-    });
     const response = await request(app)
       .post('/api/expenses')
-      .set('Authorization', 'Bearer token')
+      .set('X-User-Email', 'permitido@example.com')
       .send({ supplier: '', estimated: -1 });
+
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Bad Request');
   });
