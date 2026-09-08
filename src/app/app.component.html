@@ -4,7 +4,7 @@
       Carregando seu planejamento…
     </div>
   </main>
-} @else if (!auth.user()) {
+} @else if (!auth.email()) {
   <main
     class="flex min-h-screen items-center justify-center bg-gradient-to-br from-blush-100 via-stone-50 to-stone-100 p-6"
   >
@@ -23,22 +23,37 @@
         Gastos do Casamento
       </h1>
       <p class="mt-3 text-slate-600">
-        Entre com sua conta Google para acessar o orçamento e os contratos.
+        Informe seu e-mail para acessar o orçamento e os contratos.
       </p>
-      @if (auth.unauthorized()) {
+      @if (auth.error()) {
         <div
           class="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
         >
-          Seu e-mail não está autorizado.
+          {{ auth.error() }}
         </div>
       }
-      <button
-        class="button-primary mt-6 w-full"
-        type="button"
-        (click)="auth.signInWithGoogle()"
-      >
-        Entrar com Google
-      </button>
+      <form class="mt-6 text-left" (ngSubmit)="submitLogin()">
+        <label class="text-sm font-semibold text-slate-700">
+          E-mail
+          <input
+            class="field mt-1"
+            type="email"
+            name="email"
+            [(ngModel)]="loginEmail"
+            required
+            autofocus
+            autocomplete="email"
+            placeholder="voce@example.com"
+          />
+        </label>
+        <button
+          class="button-primary mt-4 w-full"
+          type="submit"
+          [disabled]="auth.loading()"
+        >
+          {{ auth.loading() ? 'Entrando…' : 'Entrar' }}
+        </button>
+      </form>
     </section>
   </main>
 } @else {
@@ -67,14 +82,7 @@
           <div
             class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500"
           >
-            @if (auth.user()?.photoURL) {
-              <img
-                class="h-7 w-7 rounded-full"
-                [src]="auth.user()?.photoURL"
-                alt=""
-              />
-            }
-            <span>{{ auth.user()?.email }}</span>
+            <span>{{ auth.email() }}</span>
             @if (store.saving()) {
               <span
                 class="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700"
@@ -106,7 +114,7 @@
           <button
             class="button-secondary"
             type="button"
-            (click)="auth.signOut()"
+            (click)="auth.logout()"
           >
             Sair
           </button>
