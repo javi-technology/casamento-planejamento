@@ -142,6 +142,21 @@ export class BudgetStore {
     this.scheduleBudgetSave();
   }
 
+  categoryHasExpenses(id: string): boolean {
+    return this.budget().expenses.some((expense) => expense.categoryId === id);
+  }
+
+  removeCategory(id: string): void {
+    if (this.categoryHasExpenses(id)) {
+      return;
+    }
+    this.budget.update((budget) => ({
+      ...budget,
+      categories: budget.categories.filter((category) => category.id !== id),
+    }));
+    this.scheduleBudgetSave();
+  }
+
   addExpense(expense: Omit<Expense, 'id'>): void {
     this.saving.set(true);
     this.api.createExpense(expense).subscribe({
