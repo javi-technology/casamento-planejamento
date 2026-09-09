@@ -62,7 +62,7 @@
   }
 
   <div class="overflow-x-auto">
-    <table class="min-w-[980px] w-full text-left text-sm">
+    <table class="min-w-[1060px] w-full text-left text-sm">
       <thead
         class="border-b border-stone-200 text-xs uppercase tracking-wide text-slate-500"
       >
@@ -76,6 +76,7 @@
           <th class="px-3 py-3 font-semibold">Pago</th>
           <th class="px-3 py-3 font-semibold">Diferença</th>
           <th class="w-32 px-3 py-3 font-semibold">Progresso</th>
+          <th class="px-3 py-3 font-semibold" aria-label="Ações"></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-stone-100">
@@ -137,9 +138,54 @@
                 {{ row.progress | number: '1.0-0' }}%
               </span>
             </td>
+            <td class="px-3 py-3 text-right">
+              <button
+                class="rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+                (click)="removeCategory(row.id)"
+                [disabled]="store.categoryHasExpenses(row.id)"
+                [title]="
+                  store.categoryHasExpenses(row.id)
+                    ? 'Mova ou exclua os fornecedores desta categoria antes de removê-la'
+                    : 'Excluir categoria'
+                "
+              >
+                Excluir
+              </button>
+            </td>
           </tr>
         }
       </tbody>
     </table>
   </div>
+
+  @if (categoryPendingDeletion) {
+    <div
+      class="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/40 p-4"
+    >
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-slate-900">Remover categoria?</h3>
+        <p class="mt-2 text-sm text-slate-600">
+          A categoria <strong>{{ pendingCategoryName }}</strong> será removida
+          do planejamento.
+        </p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button
+            class="button-secondary"
+            type="button"
+            (click)="categoryPendingDeletion = null"
+          >
+            Cancelar
+          </button>
+          <button
+            class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+            type="button"
+            (click)="confirmRemoveCategory()"
+          >
+            Remover
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </section>

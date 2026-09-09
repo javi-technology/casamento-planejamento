@@ -107,6 +107,39 @@ describe('BudgetStore', () => {
     expect(buffet?.perGuestAmount).toBe(120);
   });
 
+  it('remove uma categoria sem fornecedores', () => {
+    const categoryId = store.budget().categories[0].id;
+
+    store.removeCategory(categoryId);
+
+    expect(
+      store.budget().categories.some((category) => category.id === categoryId),
+    ).toBeFalse();
+  });
+
+  it('não remove categoria com fornecedores vinculados', () => {
+    const categoryId = store.budget().categories[0].id;
+    const total = store.budget().categories.length;
+    store.budget.update((budget) => ({
+      ...budget,
+      expenses: [
+        {
+          id: '1',
+          categoryId,
+          supplier: 'Fornecedor A',
+          estimated: 1000,
+          contracted: 800,
+          paid: 0,
+        },
+      ],
+    }));
+
+    store.removeCategory(categoryId);
+
+    expect(store.budget().categories.length).toBe(total);
+    expect(store.categoryHasExpenses(categoryId)).toBeTrue();
+  });
+
   it('exibe uma migração quando há dados locais e o servidor está vazio', async () => {
     localStorage.setItem(
       STORAGE_KEY,

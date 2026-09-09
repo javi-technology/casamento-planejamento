@@ -15,6 +15,28 @@ export class CategoryTableComponent {
   newCategoryName = '';
   newCategoryPct = 0;
   newCategoryPerGuest = false;
+  categoryPendingDeletion: string | null = null;
+
+  get pendingCategoryName(): string {
+    return (
+      this.store
+        .budget()
+        .categories.find(
+          (category) => category.id === this.categoryPendingDeletion,
+        )?.name ?? ''
+    );
+  }
+
+  removeCategory(id: string): void {
+    this.categoryPendingDeletion = id;
+  }
+
+  confirmRemoveCategory(): void {
+    if (this.categoryPendingDeletion) {
+      this.store.removeCategory(this.categoryPendingDeletion);
+    }
+    this.categoryPendingDeletion = null;
+  }
 
   addCategory(): void {
     const name = this.newCategoryName.trim();
