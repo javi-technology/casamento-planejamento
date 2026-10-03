@@ -24,6 +24,7 @@ import { app } from './index';
 import { isAllowed, parseAllowedEmails } from './middleware/auth.middleware';
 import { slug } from './contract/contract.service';
 import { validateBudgetInput } from './budget/budget.validation';
+import * as budgetService from './budget/budget.service';
 
 describe('auth helpers', () => {
   it('normaliza lista de e-mails com espaços e caixa', () => {
@@ -148,6 +149,26 @@ describe('API de login e autenticação', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ email: 'PERMITIDO@example.com' });
+  });
+
+  it('informa os possíveis responsáveis junto do orçamento', async () => {
+    process.env.ALLOWED_EMAILS = 'Noiva@example.com, noivo@example.com';
+    jest.spyOn(budgetService, 'getBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [],
+      expenses: [],
+    });
+
+    const response = await request(app)
+      .get('/api/budget')
+      .set('X-User-Email', 'noiva@example.com');
+
+    expect(response.status).toBe(200);
+    expect(response.body.responsibles).toEqual([
+      'noiva@example.com',
+      'noivo@example.com',
+    ]);
   });
 
   it('valida orçamento antes de acessar o banco', async () => {
