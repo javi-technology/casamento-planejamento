@@ -26,6 +26,7 @@ export class BudgetStore {
   private loadedUserId: string | null = null;
 
   readonly budget = signal<WeddingBudget>(createDefaultBudget());
+  readonly responsibles = signal<string[]>([]);
   readonly saving = signal(false);
   readonly error = signal('');
   readonly migrationCandidate = signal<WeddingBudget | null>(null);

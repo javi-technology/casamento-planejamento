@@ -3,6 +3,7 @@ export interface Category {
   name: string;
   suggestedPct: number;
   perGuest: boolean;
+  responsible?: string;
 }
 
 export interface Expense {
@@ -29,6 +30,10 @@ export interface WeddingBudget {
   maxBudget: number;
   categories: Category[];
   expenses: Expense[];
+}
+
+export interface BudgetResponse extends WeddingBudget {
+  responsibles?: string[];
 }
 
 export interface CategorySummary extends Category {
