@@ -159,10 +159,24 @@ Boas práticas:
 
 - Título após o prefixo curto, no imperativo, em português; uma issue = uma
   entrega.
-- Só inicie o trabalho quando a DOR estiver preenchida.
+- Só inicie o trabalho quando a DOR estiver preenchida e a issue tiver
+  Estimate, Size e Priority (veja abaixo).
 - Cada critério do DOD deve virar ao menos um teste (ver TDD).
 - Trabalho grande deve ser quebrado em issues menores e independentes.
 - O PR referencia a issue com `Closes #<n>`; a branch é `issue-<n>`.
+
+### Estimate, Size e Priority
+
+Toda issue **deve** ter os três campos preenchidos (campos do GitHub Projects)
+antes de iniciar o trabalho:
+
+- **Estimate:** estimativa de esforço para entregar a issue.
+- **Size:** tamanho relativo da issue.
+- **Priority:** prioridade em relação às demais issues.
+
+Ao criar uma issue, defina os três campos. Se ela estiver sem algum deles,
+preencha-o (ou peça os valores) antes de criar a branch `issue-<n>`. Use os
+valores configurados no Project; não invente opções que ele não tenha.
 
 ## Pull Requests
 
@@ -242,7 +256,8 @@ reais.
 
 ## Checklist antes do PR
 
-- [ ] Existe issue e a branch segue `issue-<n>`, saída de `develop`
+- [ ] Existe issue com Estimate, Size e Priority preenchidos
+- [ ] A branch segue `issue-<n>`, saída de `develop`
 - [ ] Cada critério de aceite tem teste (RED → GREEN → REFACTOR cumprido)
 - [ ] `npx prettier --check .`
 - [ ] `npm run build` e `npm test -- --watch=false --browsers=ChromeHeadless`
