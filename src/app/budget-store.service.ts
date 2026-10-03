@@ -97,7 +97,10 @@ export class BudgetStore {
     this.loadedUserId = userId ?? null;
     this.error.set('');
     try {
-      const budget = await firstValueFrom(this.api.getBudget());
+      const { responsibles, ...budget } = await firstValueFrom(
+        this.api.getBudget(),
+      );
+      this.responsibles.set(responsibles ?? []);
       this.budget.set(budget);
       if (budget.expenses.length === 0) {
         this.findMigrationCandidate();
