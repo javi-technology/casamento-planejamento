@@ -23,6 +23,7 @@ jest.mock('firebase-functions/v2/https', () => ({
 import { app } from './index';
 import { isAllowed, parseAllowedEmails } from './middleware/auth.middleware';
 import { slug } from './contract/contract.service';
+import { validateBudgetInput } from './budget/budget.validation';
 
 describe('auth helpers', () => {
   it('normaliza lista de e-mails com espaços e caixa', () => {
@@ -40,6 +41,44 @@ describe('auth helpers', () => {
   it('gera slug sem acentos e caracteres especiais', () => {
     expect(slug('Buffet Sabor & Ação')).toBe('buffet-sabor-acao');
   });
+});
+
+describe('validação de responsável da categoria', () => {
+  const budget = (responsible?: unknown) => ({
+    guests: 100,
+    maxBudget: 1000,
+    categories: [
+      {
+        id: 'bebidas',
+        name: 'Bebidas',
+        suggestedPct: 8,
+        perGuest: true,
+        ...(responsible === undefined ? {} : { responsible }),
+      },
+    ],
+  });
+  const allowed = ['noiva@example.com', 'noivo@example.com'];
+
+  it('aceita categoria sem responsável (orçamentos antigos)', () => {
+    expect(validateBudgetInput(budget(), false, allowed)).toEqual([]);
+  });
+
+  it('aceita responsável permitido sem diferenciar maiúsculas', () => {
+    expect(
+      validateBudgetInput(budget('NOIVA@example.com'), false, allowed),
+    ).toEqual([]);
+  });
+
+  it.each([42, null, {}])(
+    'rejeita responsável que não é texto (%p)',
+    (responsible) => {
+      const errors = validateBudgetInput(budget(responsible), false, allowed);
+
+      expect(errors.map((error) => error.field)).toEqual([
+        'categories[0].responsible',
+      ]);
+    },
+  );
 });
 
 describe('API de login e autenticação', () => {

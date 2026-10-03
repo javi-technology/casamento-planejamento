@@ -52,7 +52,8 @@ export function validateBudgetInput(
       }
       if (
         category?.responsible !== undefined &&
-        !isAllowed(category.responsible, allowedResponsibles)
+        (typeof category.responsible !== 'string' ||
+          !isAllowed(category.responsible, allowedResponsibles))
       ) {
         errors.push({
           field: `categories[${index}].responsible`,
