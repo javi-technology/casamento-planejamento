@@ -47,6 +47,11 @@ Protegidas (middleware de auth): `GET /api/me`, `GET|PUT /api/budget`,
 `PUT|DELETE /api/expenses/:id`,
 `POST|GET|DELETE /api/expenses/:id/contract`.
 
+`GET /api/budget` também devolve `responsibles` (e-mails de `ALLOWED_EMAILS`),
+usados no seletor de responsável por categoria (`Category.responsible`,
+opcional). `PUT /api/budget` e `POST /api/budget/import` rejeitam responsável
+fora dessa lista.
+
 ### Autenticação
 
 O login usa apenas o e-mail digitado. A API compara com `ALLOWED_EMAILS`
