@@ -19,7 +19,10 @@ export async function getBudget(
   next: NextFunction,
 ): Promise<void> {
   try {
-    res.json(await budgetService.getBudget());
+    res.json({
+      ...(await budgetService.getBudget()),
+      responsibles: parseAllowedEmails(),
+    });
   } catch (error) {
     next(error);
   }
