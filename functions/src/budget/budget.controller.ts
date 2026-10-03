@@ -3,6 +3,7 @@ import * as budgetService from './budget.service';
 import { validateBudgetInput, validateExpense } from './budget.validation';
 import { Expense, WeddingBudget } from './types';
 import { deleteContractObject } from '../contract/contract.service';
+import { parseAllowedEmails } from '../middleware/auth.middleware';
 
 function validationResponse(res: Response, errors: unknown[]): void {
   res.status(400).json({
@@ -29,7 +30,7 @@ export async function updateBudget(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const errors = validateBudgetInput(req.body);
+  const errors = validateBudgetInput(req.body, false, parseAllowedEmails());
   if (errors.length) {
     validationResponse(res, errors);
     return;
@@ -53,7 +54,7 @@ export async function importBudget(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const errors = validateBudgetInput(req.body, true);
+  const errors = validateBudgetInput(req.body, true, parseAllowedEmails());
   if (errors.length) {
     validationResponse(res, errors);
     return;

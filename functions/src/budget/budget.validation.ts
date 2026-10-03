@@ -1,4 +1,5 @@
-import { Category, Expense, WeddingBudget } from './types';
+import { isAllowed } from '../middleware/auth.middleware';
+import { Expense, WeddingBudget } from './types';
 
 export interface ValidationError {
   field: string;
@@ -8,6 +9,7 @@ export interface ValidationError {
 export function validateBudgetInput(
   value: unknown,
   requireExpenses = false,
+  allowedResponsibles: string[] = [],
 ): ValidationError[] {
   const input = value as Partial<WeddingBudget> | null;
   const errors: ValidationError[] = [];
@@ -46,6 +48,15 @@ export function validateBudgetInput(
         errors.push({
           field: `categories[${index}].suggestedPct`,
           message: 'Deve ser um número finito maior ou igual a 0',
+        });
+      }
+      if (
+        category?.responsible !== undefined &&
+        !isAllowed(category.responsible, allowedResponsibles)
+      ) {
+        errors.push({
+          field: `categories[${index}].responsible`,
+          message: 'Responsável não está na lista permitida',
         });
       }
     });
