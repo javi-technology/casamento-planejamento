@@ -121,6 +121,31 @@ describe('API de login e autenticação', () => {
     expect(response.body.error).toBe('Bad Request');
   });
 
+  it('rejeita responsável da categoria fora da lista permitida', async () => {
+    const response = await request(app)
+      .put('/api/budget')
+      .set('X-User-Email', 'permitido@example.com')
+      .send({
+        guests: 100,
+        maxBudget: 1000,
+        categories: [
+          {
+            id: 'bebidas',
+            name: 'Bebidas',
+            suggestedPct: 8,
+            perGuest: true,
+            responsible: 'intruso@example.com',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Bad Request');
+    expect(JSON.stringify(response.body)).toContain(
+      'categories[0].responsible',
+    );
+  });
+
   it('valida despesas antes de acessar o banco', async () => {
     const response = await request(app)
       .post('/api/expenses')
