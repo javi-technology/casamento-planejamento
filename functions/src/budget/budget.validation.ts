@@ -1,4 +1,5 @@
-import { Category, Expense, WeddingBudget } from './types';
+import { isAllowed } from '../middleware/auth.middleware';
+import { Expense, WeddingBudget } from './types';
 
 export interface ValidationError {
   field: string;
@@ -8,6 +9,8 @@ export interface ValidationError {
 export function validateBudgetInput(
   value: unknown,
   requireExpenses = false,
+  allowedResponsibles: string[] = [],
+  currentResponsibles: Record<string, string | undefined> = {},
 ): ValidationError[] {
   const input = value as Partial<WeddingBudget> | null;
   const errors: ValidationError[] = [];
@@ -48,6 +51,19 @@ export function validateBudgetInput(
           message: 'Deve ser um número finito maior ou igual a 0',
         });
       }
+      if (
+        category?.responsible !== undefined &&
+        (typeof category.responsible !== 'string' ||
+          !(
+            isAllowed(category.responsible, allowedResponsibles) ||
+            isCurrentResponsible(category, currentResponsibles)
+          ))
+      ) {
+        errors.push({
+          field: `categories[${index}].responsible`,
+          message: 'Responsável não está na lista permitida',
+        });
+      }
     });
   }
   if (requireExpenses) {
@@ -64,6 +80,24 @@ export function validateBudgetInput(
   }
 
   return errors;
+}
+
+// Mantém a atribuição já salva mesmo que o e-mail tenha saído da allowlist.
+function isCurrentResponsible(
+  category: { id: string; responsible?: string },
+  current: Record<string, string | undefined>,
+): boolean {
+  return isAllowed(category.responsible, [current[category.id] ?? '']);
+}
+
+export function normalizeResponsibles<T extends { responsible?: string }>(
+  categories: T[],
+): T[] {
+  return categories.map((category) =>
+    category.responsible === undefined
+      ? category
+      : { ...category, responsible: category.responsible.toLowerCase() },
+  );
 }
 
 export function validateExpense(

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Expense, WeddingBudget } from '../models';
+import { BudgetResponse, Expense, WeddingBudget } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -15,8 +15,8 @@ export class ApiService {
     return this.http.get<{ email: string }>('/api/me');
   }
 
-  getBudget(): Observable<WeddingBudget> {
-    return this.http.get<WeddingBudget>('/api/budget');
+  getBudget(): Observable<BudgetResponse> {
+    return this.http.get<BudgetResponse>('/api/budget');
   }
 
   updateBudget(
