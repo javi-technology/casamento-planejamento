@@ -62,12 +62,13 @@
   }
 
   <div class="overflow-x-auto">
-    <table class="min-w-[1060px] w-full text-left text-sm">
+    <table class="min-w-[1240px] w-full text-left text-sm">
       <thead
         class="border-b border-stone-200 text-xs uppercase tracking-wide text-slate-500"
       >
         <tr>
           <th class="px-3 py-3 font-semibold">Categoria</th>
+          <th class="px-3 py-3 font-semibold">Responsável</th>
           <th class="px-3 py-3 font-semibold">% sugerido</th>
           <th class="px-3 py-3 font-semibold">Orçamento sugerido</th>
           <th class="px-3 py-3 font-semibold">Por convidado</th>
@@ -84,6 +85,20 @@
           <tr class="align-middle hover:bg-stone-50">
             <td class="px-3 py-3 font-semibold text-slate-800">
               {{ row.name }}
+            </td>
+            <td class="px-3 py-3">
+              <select
+                class="rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5 text-sm"
+                data-responsible
+                [attr.aria-label]="'Responsável por ' + row.name"
+                [ngModel]="row.responsible ?? ''"
+                (ngModelChange)="updateResponsible(row.id, $event)"
+              >
+                <option value="">Sem responsável</option>
+                @for (email of store.responsibles(); track email) {
+                  <option [value]="email">{{ email }}</option>
+                }
+              </select>
             </td>
             <td class="px-3 py-3">
               <input

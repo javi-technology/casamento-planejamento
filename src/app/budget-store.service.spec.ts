@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { ApiService } from './core/api.service';
 import {
@@ -151,4 +151,34 @@ describe('BudgetStore', () => {
     store.discardLegacy();
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
+
+  it('carrega os possíveis responsáveis sem misturá-los ao orçamento', async () => {
+    api.getBudget.and.returnValue(
+      of({
+        ...createDefaultBudget(),
+        responsibles: ['noiva@example.com', 'noivo@example.com'],
+      }),
+    );
+
+    await store.load();
+
+    expect(store.responsibles()).toEqual([
+      'noiva@example.com',
+      'noivo@example.com',
+    ]);
+    expect('responsibles' in store.budget()).toBeFalse();
+  });
+
+  it('define o responsável de uma categoria e salva no servidor', fakeAsync(() => {
+    const categoryId = store.budget().categories[0].id;
+    api.updateBudget.and.callFake((budget) => of({ ...budget, expenses: [] }));
+
+    store.updateCategory(categoryId, { responsible: 'noiva@example.com' });
+    tick(500);
+
+    expect(store.budget().categories[0].responsible).toBe('noiva@example.com');
+    expect(
+      api.updateBudget.calls.mostRecent().args[0].categories[0].responsible,
+    ).toBe('noiva@example.com');
+  }));
 });

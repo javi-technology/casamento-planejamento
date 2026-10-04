@@ -26,6 +26,7 @@ export class BudgetStore {
   private loadedUserId: string | null = null;
 
   readonly budget = signal<WeddingBudget>(createDefaultBudget());
+  readonly responsibles = signal<string[]>([]);
   readonly saving = signal(false);
   readonly error = signal('');
   readonly migrationCandidate = signal<WeddingBudget | null>(null);
@@ -96,7 +97,10 @@ export class BudgetStore {
     this.loadedUserId = userId ?? null;
     this.error.set('');
     try {
-      const budget = await firstValueFrom(this.api.getBudget());
+      const { responsibles, ...budget } = await firstValueFrom(
+        this.api.getBudget(),
+      );
+      this.responsibles.set(responsibles ?? []);
       this.budget.set(budget);
       if (budget.expenses.length === 0) {
         this.findMigrationCandidate();

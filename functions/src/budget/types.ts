@@ -3,6 +3,7 @@ export interface Category {
   name: string;
   suggestedPct: number;
   perGuest: boolean;
+  responsible?: string;
 }
 
 export interface ContractMetadata {

@@ -23,6 +23,8 @@ jest.mock('firebase-functions/v2/https', () => ({
 import { app } from './index';
 import { isAllowed, parseAllowedEmails } from './middleware/auth.middleware';
 import { slug } from './contract/contract.service';
+import { validateBudgetInput } from './budget/budget.validation';
+import * as budgetService from './budget/budget.service';
 
 describe('auth helpers', () => {
   it('normaliza lista de e-mails com espaços e caixa', () => {
@@ -39,6 +41,87 @@ describe('auth helpers', () => {
 
   it('gera slug sem acentos e caracteres especiais', () => {
     expect(slug('Buffet Sabor & Ação')).toBe('buffet-sabor-acao');
+  });
+});
+
+describe('validação de responsável da categoria', () => {
+  const budget = (responsible?: unknown) => ({
+    guests: 100,
+    maxBudget: 1000,
+    categories: [
+      {
+        id: 'bebidas',
+        name: 'Bebidas',
+        suggestedPct: 8,
+        perGuest: true,
+        ...(responsible === undefined ? {} : { responsible }),
+      },
+    ],
+  });
+  const allowed = ['noiva@example.com', 'noivo@example.com'];
+
+  it('aceita categoria sem responsável (orçamentos antigos)', () => {
+    expect(validateBudgetInput(budget(), false, allowed)).toEqual([]);
+  });
+
+  it('aceita responsável permitido sem diferenciar maiúsculas', () => {
+    expect(
+      validateBudgetInput(budget('NOIVA@example.com'), false, allowed),
+    ).toEqual([]);
+  });
+
+  it.each([42, null, {}])(
+    'rejeita responsável que não é texto (%p)',
+    (responsible) => {
+      const errors = validateBudgetInput(budget(responsible), false, allowed);
+
+      expect(errors.map((error) => error.field)).toEqual([
+        'categories[0].responsible',
+      ]);
+    },
+  );
+});
+
+describe('responsável que saiu da allowlist', () => {
+  const category = (id: string, responsible?: string) => ({
+    id,
+    name: id,
+    suggestedPct: 8,
+    perGuest: true,
+    ...(responsible === undefined ? {} : { responsible }),
+  });
+  const budget = (...categories: ReturnType<typeof category>[]) => ({
+    guests: 100,
+    maxBudget: 1000,
+    categories,
+  });
+  const allowed = ['noiva@example.com'];
+
+  it('mantém a atribuição já salva na categoria', () => {
+    const errors = validateBudgetInput(
+      budget(category('bebidas', 'Antigo@example.com')),
+      false,
+      allowed,
+      { bebidas: 'antigo@example.com' },
+    );
+
+    expect(errors).toEqual([]);
+  });
+
+  it('não permite atribuir o e-mail removido a outra categoria', () => {
+    const errors = validateBudgetInput(
+      budget(
+        category('bebidas', 'antigo@example.com'),
+        category('buffet', 'antigo@example.com'),
+      ),
+      false,
+      allowed,
+      { bebidas: 'antigo@example.com' },
+    );
+
+    expect(errors.map((error) => error.field)).toEqual([
+      'categories[1].responsible',
+    ]);
   });
 });
 
@@ -111,6 +194,26 @@ describe('API de login e autenticação', () => {
     expect(response.body).toEqual({ email: 'PERMITIDO@example.com' });
   });
 
+  it('informa os possíveis responsáveis junto do orçamento', async () => {
+    process.env.ALLOWED_EMAILS = 'Noiva@example.com, noivo@example.com';
+    jest.spyOn(budgetService, 'getBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [],
+      expenses: [],
+    });
+
+    const response = await request(app)
+      .get('/api/budget')
+      .set('X-User-Email', 'noiva@example.com');
+
+    expect(response.status).toBe(200);
+    expect(response.body.responsibles).toEqual([
+      'noiva@example.com',
+      'noivo@example.com',
+    ]);
+  });
+
   it('valida orçamento antes de acessar o banco', async () => {
     const response = await request(app)
       .put('/api/budget')
@@ -119,6 +222,132 @@ describe('API de login e autenticação', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Bad Request');
+  });
+
+  it('rejeita responsável da categoria fora da lista permitida', async () => {
+    const response = await request(app)
+      .put('/api/budget')
+      .set('X-User-Email', 'permitido@example.com')
+      .send({
+        guests: 100,
+        maxBudget: 1000,
+        categories: [
+          {
+            id: 'bebidas',
+            name: 'Bebidas',
+            suggestedPct: 8,
+            perGuest: true,
+            responsible: 'intruso@example.com',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Bad Request');
+    expect(JSON.stringify(response.body)).toContain(
+      'categories[0].responsible',
+    );
+  });
+
+  it('permite salvar o orçamento com responsável removido da allowlist', async () => {
+    const stored = {
+      id: 'bebidas',
+      name: 'Bebidas',
+      suggestedPct: 8,
+      perGuest: true,
+      responsible: 'antigo@example.com',
+    };
+    jest.spyOn(budgetService, 'getBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [stored],
+      expenses: [],
+    });
+    const update = jest.spyOn(budgetService, 'updateBudget').mockResolvedValue({
+      guests: 120,
+      maxBudget: 1000,
+      categories: [stored],
+      expenses: [],
+    });
+
+    const response = await request(app)
+      .put('/api/budget')
+      .set('X-User-Email', 'permitido@example.com')
+      .send({ guests: 120, maxBudget: 1000, categories: [stored] });
+
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('salva o responsável em minúsculas', async () => {
+    jest.spyOn(budgetService, 'getBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [],
+      expenses: [],
+    });
+    const update = jest.spyOn(budgetService, 'updateBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [],
+      expenses: [],
+    });
+
+    const response = await request(app)
+      .put('/api/budget')
+      .set('X-User-Email', 'permitido@example.com')
+      .send({
+        guests: 100,
+        maxBudget: 1000,
+        categories: [
+          {
+            id: 'bebidas',
+            name: 'Bebidas',
+            suggestedPct: 8,
+            perGuest: true,
+            responsible: 'PERMITIDO@example.com',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(update.mock.calls.at(-1)?.[0].categories[0].responsible).toBe(
+      'permitido@example.com',
+    );
+  });
+
+  it('importa o responsável em minúsculas', async () => {
+    const importBudget = jest
+      .spyOn(budgetService, 'importBudget')
+      .mockResolvedValue({
+        guests: 100,
+        maxBudget: 1000,
+        categories: [],
+        expenses: [],
+      });
+
+    const response = await request(app)
+      .post('/api/budget/import')
+      .set('X-User-Email', 'permitido@example.com')
+      .send({
+        guests: 100,
+        maxBudget: 1000,
+        expenses: [],
+        categories: [
+          {
+            id: 'bebidas',
+            name: 'Bebidas',
+            suggestedPct: 8,
+            perGuest: true,
+            responsible: 'PERMITIDO@example.com',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(importBudget.mock.calls.at(-1)?.[0].categories[0].responsible).toBe(
+      'permitido@example.com',
+    );
   });
 
   it('valida despesas antes de acessar o banco', async () => {

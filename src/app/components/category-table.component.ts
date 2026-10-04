@@ -59,6 +59,10 @@ export class CategoryTableComponent {
     this.store.updateCategory(id, { suggestedPct: this.parseNumber(value) });
   }
 
+  updateResponsible(id: string, value: string): void {
+    this.store.updateCategory(id, { responsible: value || undefined });
+  }
+
   updatePerGuest(id: string, value: boolean): void {
     this.store.updateCategory(id, { perGuest: value });
   }
