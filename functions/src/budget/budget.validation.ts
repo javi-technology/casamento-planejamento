@@ -10,6 +10,7 @@ export function validateBudgetInput(
   value: unknown,
   requireExpenses = false,
   allowedResponsibles: string[] = [],
+  currentResponsibles: Record<string, string | undefined> = {},
 ): ValidationError[] {
   const input = value as Partial<WeddingBudget> | null;
   const errors: ValidationError[] = [];
@@ -53,7 +54,10 @@ export function validateBudgetInput(
       if (
         category?.responsible !== undefined &&
         (typeof category.responsible !== 'string' ||
-          !isAllowed(category.responsible, allowedResponsibles))
+          !(
+            isAllowed(category.responsible, allowedResponsibles) ||
+            isCurrentResponsible(category, currentResponsibles)
+          ))
       ) {
         errors.push({
           field: `categories[${index}].responsible`,
@@ -76,6 +80,24 @@ export function validateBudgetInput(
   }
 
   return errors;
+}
+
+// Mantém a atribuição já salva mesmo que o e-mail tenha saído da allowlist.
+function isCurrentResponsible(
+  category: { id: string; responsible?: string },
+  current: Record<string, string | undefined>,
+): boolean {
+  return isAllowed(category.responsible, [current[category.id] ?? '']);
+}
+
+export function normalizeResponsibles<T extends { responsible?: string }>(
+  categories: T[],
+): T[] {
+  return categories.map((category) =>
+    category.responsible === undefined
+      ? category
+      : { ...category, responsible: category.responsible.toLowerCase() },
+  );
 }
 
 export function validateExpense(

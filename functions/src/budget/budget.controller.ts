@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import * as budgetService from './budget.service';
-import { validateBudgetInput, validateExpense } from './budget.validation';
+import {
+  normalizeResponsibles,
+  validateBudgetInput,
+  validateExpense,
+} from './budget.validation';
 import { Expense, WeddingBudget } from './types';
 import { deleteContractObject } from '../contract/contract.service';
 import { parseAllowedEmails } from '../middleware/auth.middleware';
@@ -33,18 +37,24 @@ export async function updateBudget(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const errors = validateBudgetInput(req.body, false, parseAllowedEmails());
-  if (errors.length) {
-    validationResponse(res, errors);
-    return;
-  }
-
   try {
+    const current = await budgetService.getBudget();
+    const errors = validateBudgetInput(
+      req.body,
+      false,
+      parseAllowedEmails(),
+      Object.fromEntries(current.categories.map((c) => [c.id, c.responsible])),
+    );
+    if (errors.length) {
+      validationResponse(res, errors);
+      return;
+    }
+
     res.json(
       await budgetService.updateBudget({
         guests: req.body.guests,
         maxBudget: req.body.maxBudget,
-        categories: req.body.categories,
+        categories: normalizeResponsibles(req.body.categories),
       }),
     );
   } catch (error) {
@@ -64,7 +74,12 @@ export async function importBudget(
   }
 
   try {
-    res.json(await budgetService.importBudget(req.body as WeddingBudget));
+    res.json(
+      await budgetService.importBudget({
+        ...(req.body as WeddingBudget),
+        categories: normalizeResponsibles(req.body.categories),
+      }),
+    );
   } catch (error) {
     next(error);
   }

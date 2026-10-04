@@ -311,7 +311,7 @@ describe('API de login e autenticação', () => {
       });
 
     expect(response.status).toBe(200);
-    expect(update.mock.calls[0][0].categories[0].responsible).toBe(
+    expect(update.mock.calls.at(-1)?.[0].categories[0].responsible).toBe(
       'permitido@example.com',
     );
   });
@@ -345,7 +345,7 @@ describe('API de login e autenticação', () => {
       });
 
     expect(response.status).toBe(200);
-    expect(importBudget.mock.calls[0][0].categories[0].responsible).toBe(
+    expect(importBudget.mock.calls.at(-1)?.[0].categories[0].responsible).toBe(
       'permitido@example.com',
     );
   });
