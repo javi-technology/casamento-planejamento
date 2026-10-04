@@ -82,6 +82,49 @@ describe('validação de responsável da categoria', () => {
   );
 });
 
+describe('responsável que saiu da allowlist', () => {
+  const category = (id: string, responsible?: string) => ({
+    id,
+    name: id,
+    suggestedPct: 8,
+    perGuest: true,
+    ...(responsible === undefined ? {} : { responsible }),
+  });
+  const budget = (...categories: ReturnType<typeof category>[]) => ({
+    guests: 100,
+    maxBudget: 1000,
+    categories,
+  });
+  const allowed = ['noiva@example.com'];
+
+  it('mantém a atribuição já salva na categoria', () => {
+    const errors = validateBudgetInput(
+      budget(category('bebidas', 'Antigo@example.com')),
+      false,
+      allowed,
+      { bebidas: 'antigo@example.com' },
+    );
+
+    expect(errors).toEqual([]);
+  });
+
+  it('não permite atribuir o e-mail removido a outra categoria', () => {
+    const errors = validateBudgetInput(
+      budget(
+        category('bebidas', 'antigo@example.com'),
+        category('buffet', 'antigo@example.com'),
+      ),
+      false,
+      allowed,
+      { bebidas: 'antigo@example.com' },
+    );
+
+    expect(errors.map((error) => error.field)).toEqual([
+      'categories[1].responsible',
+    ]);
+  });
+});
+
 describe('API de login e autenticação', () => {
   beforeEach(() => {
     process.env.ALLOWED_EMAILS = 'permitido@example.com';
@@ -203,6 +246,107 @@ describe('API de login e autenticação', () => {
     expect(response.body.error).toBe('Bad Request');
     expect(JSON.stringify(response.body)).toContain(
       'categories[0].responsible',
+    );
+  });
+
+  it('permite salvar o orçamento com responsável removido da allowlist', async () => {
+    const stored = {
+      id: 'bebidas',
+      name: 'Bebidas',
+      suggestedPct: 8,
+      perGuest: true,
+      responsible: 'antigo@example.com',
+    };
+    jest.spyOn(budgetService, 'getBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [stored],
+      expenses: [],
+    });
+    const update = jest.spyOn(budgetService, 'updateBudget').mockResolvedValue({
+      guests: 120,
+      maxBudget: 1000,
+      categories: [stored],
+      expenses: [],
+    });
+
+    const response = await request(app)
+      .put('/api/budget')
+      .set('X-User-Email', 'permitido@example.com')
+      .send({ guests: 120, maxBudget: 1000, categories: [stored] });
+
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('salva o responsável em minúsculas', async () => {
+    jest.spyOn(budgetService, 'getBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [],
+      expenses: [],
+    });
+    const update = jest.spyOn(budgetService, 'updateBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [],
+      expenses: [],
+    });
+
+    const response = await request(app)
+      .put('/api/budget')
+      .set('X-User-Email', 'permitido@example.com')
+      .send({
+        guests: 100,
+        maxBudget: 1000,
+        categories: [
+          {
+            id: 'bebidas',
+            name: 'Bebidas',
+            suggestedPct: 8,
+            perGuest: true,
+            responsible: 'PERMITIDO@example.com',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(update.mock.calls[0][0].categories[0].responsible).toBe(
+      'permitido@example.com',
+    );
+  });
+
+  it('importa o responsável em minúsculas', async () => {
+    const importBudget = jest
+      .spyOn(budgetService, 'importBudget')
+      .mockResolvedValue({
+        guests: 100,
+        maxBudget: 1000,
+        categories: [],
+        expenses: [],
+      });
+
+    const response = await request(app)
+      .post('/api/budget/import')
+      .set('X-User-Email', 'permitido@example.com')
+      .send({
+        guests: 100,
+        maxBudget: 1000,
+        expenses: [],
+        categories: [
+          {
+            id: 'bebidas',
+            name: 'Bebidas',
+            suggestedPct: 8,
+            perGuest: true,
+            responsible: 'PERMITIDO@example.com',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(200);
+    expect(importBudget.mock.calls[0][0].categories[0].responsible).toBe(
+      'permitido@example.com',
     );
   });
 
