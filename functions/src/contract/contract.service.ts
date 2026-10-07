@@ -5,6 +5,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getExpense, updateExpense } from '../budget/budget.service';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const DEFAULT_BUCKET = 'javitech-8797d.appspot.com';
 
 export function slug(value: string): string {
   return value
@@ -16,9 +17,7 @@ export function slug(value: string): string {
 }
 
 function bucket() {
-  return getStorage().bucket(
-    process.env.CONTRACTS_BUCKET ?? 'casamentoplanejamentojavi',
-  );
+  return getStorage().bucket(process.env.CONTRACTS_BUCKET ?? DEFAULT_BUCKET);
 }
 
 export async function uploadContract(
@@ -98,6 +97,14 @@ interface ParsedFile {
   fileName: string;
 }
 
+function isPdf(mimeType: string, fileName: string): boolean {
+  return (
+    mimeType === 'application/pdf' ||
+    (mimeType === 'application/octet-stream' &&
+      fileName.toLowerCase().endsWith('.pdf'))
+  );
+}
+
 function readPdf(
   rawBody: Buffer,
   headers: Request['headers'],
@@ -116,7 +123,7 @@ function readPdf(
         return;
       }
 
-      if (info.mimeType !== 'application/pdf') {
+      if (!isPdf(info.mimeType, info.filename)) {
         stream.resume();
         reject(new ContractError(400, 'Apenas arquivos PDF são aceitos'));
         return;
