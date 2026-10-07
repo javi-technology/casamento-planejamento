@@ -1,9 +1,12 @@
 import { CommonModule, CurrencyPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BudgetStore } from '../budget-store.service';
 import { ApiService } from '../core/api.service';
 import { Expense } from '../models';
+
+const MAX_CONTRACT_SIZE = 10 * 1024 * 1024;
 
 interface ExpenseDraft {
   categoryId: string;
@@ -122,8 +125,15 @@ export class ExpenseSectionComponent {
     if (!file) {
       return;
     }
-    if (file.type !== 'application/pdf') {
+    const isPdf =
+      file.type === 'application/pdf' ||
+      (!file.type && file.name.toLowerCase().endsWith('.pdf'));
+    if (!isPdf) {
       this.contractError = 'Selecione um arquivo PDF.';
+      return;
+    }
+    if (file.size > MAX_CONTRACT_SIZE) {
+      this.contractError = 'O contrato deve ter no máximo 10 MB.';
       return;
     }
 
@@ -139,8 +149,9 @@ export class ExpenseSectionComponent {
         }
         this.uploadingId = null;
       },
-      error: () => {
-        this.contractError = 'Não foi possível anexar o contrato.';
+      error: (error: HttpErrorResponse) => {
+        this.contractError =
+          error.error?.message ?? 'Não foi possível anexar o contrato.';
         this.uploadingId = null;
       },
     });
