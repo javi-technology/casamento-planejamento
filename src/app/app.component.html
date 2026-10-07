@@ -152,106 +152,143 @@
         </div>
       }
 
-      <section class="card mb-6">
-        <div class="mb-4">
-          <p
-            class="text-xs font-bold uppercase tracking-[0.18em] text-blush-600"
+      <nav
+        class="mb-6 flex gap-2 border-b border-stone-200"
+        role="tablist"
+        aria-label="Seções do planejamento"
+      >
+        @for (item of tabs; track item.id) {
+          <button
+            type="button"
+            role="tab"
+            class="-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition"
+            [class.border-blush-500]="activeTab() === item.id"
+            [class.text-blush-600]="activeTab() === item.id"
+            [class.border-transparent]="activeTab() !== item.id"
+            [class.text-slate-500]="activeTab() !== item.id"
+            [attr.aria-selected]="activeTab() === item.id"
+            (click)="activeTab.set(item.id)"
           >
-            Configuração
-          </p>
-          <h2 class="mt-1 text-xl font-bold text-slate-900">Parâmetros</h2>
-        </div>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <label class="text-sm font-semibold text-slate-700"
-            >Número de convidados
-            <input
-              class="field mt-1"
-              type="number"
-              min="1"
-              [ngModel]="store.budget().guests"
-              (ngModelChange)="updateGuests($event)"
-            />
-          </label>
-          <label class="text-sm font-semibold text-slate-700"
-            >Orçamento máximo (R$)
-            <input
-              class="field mt-1"
-              type="number"
-              min="0"
-              step="100"
-              [ngModel]="store.budget().maxBudget"
-              (ngModelChange)="updateMaxBudget($event)"
-            />
-          </label>
-        </div>
-      </section>
+            {{ item.label }}
+          </button>
+        }
+      </nav>
 
-      <section class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <article class="card border-t-4 border-t-slate-700">
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Orçamento máximo
-          </p>
-          <p class="mt-2 text-xl font-black text-slate-900">
-            {{ store.budget().maxBudget | currency: 'BRL' }}
-          </p>
-        </article>
-        <article class="card border-t-4 border-t-blue-400">
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Total estimado
-          </p>
-          <p class="mt-2 text-xl font-black text-slate-900">
-            {{ store.totalEstimated() | currency: 'BRL' }}
-          </p>
-        </article>
-        <article class="card border-t-4 border-t-violet-400">
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Total contratado
-          </p>
-          <p class="mt-2 text-xl font-black text-slate-900">
-            {{ store.totalContracted() | currency: 'BRL' }}
-          </p>
-        </article>
-        <article class="card border-t-4 border-t-emerald-400">
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Total pago
-          </p>
-          <p class="mt-2 text-xl font-black text-slate-900">
-            {{ store.totalPaid() | currency: 'BRL' }}
-          </p>
-        </article>
-        <article
-          class="card border-t-4"
-          [class.border-t-rose-500]="store.remaining() < 0"
-          [class.border-t-amber-400]="store.remaining() >= 0"
-        >
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Saldo restante
-          </p>
-          <p
-            class="mt-2 text-xl font-black"
-            [class.text-rose-600]="store.remaining() < 0"
-            [class.text-slate-900]="store.remaining() >= 0"
+      <div [hidden]="activeTab() !== 'budget'">
+        <section class="card mb-6">
+          <div class="mb-4">
+            <p
+              class="text-xs font-bold uppercase tracking-[0.18em] text-blush-600"
+            >
+              Configuração
+            </p>
+            <h2 class="mt-1 text-xl font-bold text-slate-900">Parâmetros</h2>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="text-sm font-semibold text-slate-700"
+              >Número de convidados
+              <input
+                class="field mt-1"
+                type="number"
+                min="1"
+                [ngModel]="store.budget().guests"
+                (ngModelChange)="updateGuests($event)"
+              />
+            </label>
+            <label class="text-sm font-semibold text-slate-700"
+              >Orçamento máximo (R$)
+              <input
+                class="field mt-1"
+                type="number"
+                min="0"
+                step="100"
+                [ngModel]="store.budget().maxBudget"
+                (ngModelChange)="updateMaxBudget($event)"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+          <article class="card border-t-4 border-t-slate-700">
+            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Orçamento máximo
+            </p>
+            <p class="mt-2 text-xl font-black text-slate-900">
+              {{ store.budget().maxBudget | currency: 'BRL' }}
+            </p>
+          </article>
+          <article class="card border-t-4 border-t-blue-400">
+            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Total estimado
+            </p>
+            <p class="mt-2 text-xl font-black text-slate-900">
+              {{ store.totalEstimated() | currency: 'BRL' }}
+            </p>
+          </article>
+          <article class="card border-t-4 border-t-violet-400">
+            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Total contratado
+            </p>
+            <p class="mt-2 text-xl font-black text-slate-900">
+              {{ store.totalContracted() | currency: 'BRL' }}
+            </p>
+          </article>
+          <article class="card border-t-4 border-t-emerald-400">
+            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Total pago
+            </p>
+            <p class="mt-2 text-xl font-black text-slate-900">
+              {{ store.totalPaid() | currency: 'BRL' }}
+            </p>
+          </article>
+          <article
+            class="card border-t-4"
+            [class.border-t-rose-500]="store.remaining() < 0"
+            [class.border-t-amber-400]="store.remaining() >= 0"
           >
-            {{ store.remaining() | currency: 'BRL' }}
-          </p>
-        </article>
-        <article class="card border-t-4 border-t-blush-500">
-          <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Custo por convidado
-          </p>
-          <p class="mt-2 text-xl font-black text-slate-900">
-            {{ store.costPerGuest().contracted | currency: 'BRL' }}
-          </p>
-          <p class="mt-1 text-xs text-slate-500">
-            Estimado: {{ store.costPerGuest().estimated | currency: 'BRL' }}
-          </p>
-        </article>
-      </section>
+            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Saldo restante
+            </p>
+            <p
+              class="mt-2 text-xl font-black"
+              [class.text-rose-600]="store.remaining() < 0"
+              [class.text-slate-900]="store.remaining() >= 0"
+            >
+              {{ store.remaining() | currency: 'BRL' }}
+            </p>
+          </article>
+          <article class="card border-t-4 border-t-blush-500">
+            <p class="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Custo por convidado
+            </p>
+            <p class="mt-2 text-xl font-black text-slate-900">
+              {{ store.costPerGuest().contracted | currency: 'BRL' }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">
+              Estimado: {{ store.costPerGuest().estimated | currency: 'BRL' }}
+            </p>
+          </article>
+        </section>
 
-      <div class="space-y-6">
-        <app-expense-section />
-        <app-category-table />
+        <div class="space-y-6">
+          <app-expense-section />
+          <app-category-table />
+        </div>
       </div>
+
+      <section class="card" data-guests-tab [hidden]="activeTab() !== 'guests'">
+        <p class="text-xs font-bold uppercase tracking-[0.18em] text-blush-600">
+          Convidados
+        </p>
+        <h2 class="mt-1 text-xl font-bold text-slate-900">
+          Lista de convidados
+        </h2>
+        <p class="mt-2 text-sm text-slate-600">
+          Em breve você poderá cadastrar os convidados e acompanhar quem
+          confirmou presença.
+        </p>
+      </section>
       <footer class="mt-8 text-center text-xs text-slate-500">
         Seus dados ficam salvos com segurança no Firebase.
       </footer>
