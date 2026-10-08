@@ -210,7 +210,10 @@ describe('API de login e autenticação', () => {
       .set('X-User-Email', 'PERMITIDO@example.com');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ email: 'PERMITIDO@example.com' });
+    expect(response.body).toEqual({
+      email: 'PERMITIDO@example.com',
+      name: 'PERMITIDO@example.com',
+    });
   });
 
   it('informa os possíveis responsáveis junto do orçamento', async () => {

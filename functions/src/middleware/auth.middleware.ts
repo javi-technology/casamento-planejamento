@@ -15,10 +15,20 @@ export function parseAllowedEmails(
     .filter(Boolean);
 }
 
+// Formato: "email1:Nome 1,email2:Nome 2". Entradas sem e-mail ou nome são ignoradas.
 export function parseUserNames(
-  _value = process.env.USER_NAMES ?? '',
+  value = process.env.USER_NAMES ?? '',
 ): Record<string, string> {
-  return {};
+  const names: Record<string, string> = {};
+  for (const entry of value.split(',')) {
+    const separator = entry.indexOf(':');
+    const email = entry.slice(0, separator).trim().toLowerCase();
+    const name = entry.slice(separator + 1).trim();
+    if (separator > 0 && email && name) {
+      names[email] = name;
+    }
+  }
+  return names;
 }
 
 export function isAllowed(email: string | undefined, list: string[]): boolean {

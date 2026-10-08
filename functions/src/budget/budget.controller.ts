@@ -7,7 +7,10 @@ import {
 } from './budget.validation';
 import { Expense, WeddingBudget } from './types';
 import { deleteContractObject } from '../contract/contract.service';
-import { parseAllowedEmails } from '../middleware/auth.middleware';
+import {
+  parseAllowedEmails,
+  parseUserNames,
+} from '../middleware/auth.middleware';
 
 function validationResponse(res: Response, errors: unknown[]): void {
   res.status(400).json({
@@ -23,9 +26,16 @@ export async function getBudget(
   next: NextFunction,
 ): Promise<void> {
   try {
+    const responsibles = parseAllowedEmails();
+    const names = parseUserNames();
     res.json({
       ...(await budgetService.getBudget()),
-      responsibles: parseAllowedEmails(),
+      responsibles,
+      userNames: Object.fromEntries(
+        responsibles
+          .filter((email) => names[email])
+          .map((email) => [email, names[email]]),
+      ),
     });
   } catch (error) {
     next(error);

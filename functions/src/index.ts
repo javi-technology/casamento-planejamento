@@ -20,6 +20,7 @@ import {
   AuthenticatedRequest,
   isAllowed,
   parseAllowedEmails,
+  parseUserNames,
 } from './middleware/auth.middleware';
 
 admin.initializeApp();
@@ -64,7 +65,10 @@ app.use('/api/*', authMiddleware);
 
 app.get('/api/me', (req, res) => {
   const user = (req as AuthenticatedRequest).user;
-  res.json({ email: user.email });
+  res.json({
+    email: user.email,
+    name: parseUserNames()[user.email.toLowerCase()] ?? user.email,
+  });
 });
 app.get('/api/budget', getBudget);
 app.put('/api/budget', updateBudget);
