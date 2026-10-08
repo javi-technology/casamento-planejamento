@@ -5,6 +5,7 @@ import {
   ViewChild,
   effect,
   inject,
+  signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BudgetStore } from './budget-store.service';
@@ -12,6 +13,8 @@ import { CategoryTableComponent } from './components/category-table.component';
 import { ExpenseSectionComponent } from './components/expense-section.component';
 import { AuthService } from './core/auth.service';
 import { WeddingBudget } from './models';
+
+export type AppTab = 'budget' | 'guests';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +33,11 @@ export class AppComponent {
   readonly store = inject(BudgetStore);
   readonly auth = inject(AuthService);
   @ViewChild('importInput') importInput?: ElementRef<HTMLInputElement>;
+  readonly tabs: { id: AppTab; label: string }[] = [
+    { id: 'budget', label: 'Orçamento' },
+    { id: 'guests', label: 'Convidados' },
+  ];
+  readonly activeTab = signal<AppTab>('budget');
   loginEmail = '';
   showClearConfirmation = false;
   importError = '';

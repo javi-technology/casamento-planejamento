@@ -52,6 +52,13 @@ export async function deleteContract(
   }
 }
 
+function errorLabel(status: number): string {
+  if (status === 404) {
+    return 'Not Found';
+  }
+  return status >= 500 ? 'Internal Server Error' : 'Bad Request';
+}
+
 export function contractErrorHandler(
   error: unknown,
   _req: Request,
@@ -60,7 +67,7 @@ export function contractErrorHandler(
 ): void {
   if (error instanceof ContractError) {
     res.status(error.status).json({
-      error: error.status === 404 ? 'Not Found' : 'Bad Request',
+      error: errorLabel(error.status),
       message: error.message,
     });
     return;
