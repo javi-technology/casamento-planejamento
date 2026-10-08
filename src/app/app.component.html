@@ -154,19 +154,17 @@
 
       <nav
         class="mb-6 flex gap-2 border-b border-stone-200"
-        role="tablist"
         aria-label="Seções do planejamento"
       >
         @for (item of tabs; track item.id) {
           <button
             type="button"
-            role="tab"
             class="-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition"
             [class.border-blush-500]="activeTab() === item.id"
             [class.text-blush-600]="activeTab() === item.id"
             [class.border-transparent]="activeTab() !== item.id"
             [class.text-slate-500]="activeTab() !== item.id"
-            [attr.aria-selected]="activeTab() === item.id"
+            [attr.aria-current]="activeTab() === item.id ? true : null"
             (click)="activeTab.set(item.id)"
           >
             {{ item.label }}
