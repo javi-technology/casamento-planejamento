@@ -96,7 +96,9 @@
               >
                 <option value="">Sem responsável</option>
                 @for (email of store.responsibles(); track email) {
-                  <option [value]="email">{{ email }}</option>
+                  <option [value]="email">
+                    {{ store.displayName(email) }}
+                  </option>
                 }
               </select>
             </td>
