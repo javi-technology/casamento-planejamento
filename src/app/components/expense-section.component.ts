@@ -127,7 +127,8 @@ export class ExpenseSectionComponent {
     }
     const isPdf =
       file.type === 'application/pdf' ||
-      (!file.type && file.name.toLowerCase().endsWith('.pdf'));
+      ((!file.type || file.type === 'application/octet-stream') &&
+        file.name.toLowerCase().endsWith('.pdf'));
     if (!isPdf) {
       this.contractError = 'Selecione um arquivo PDF.';
       return;

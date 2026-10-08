@@ -35,18 +35,23 @@ export async function uploadContract(
   }
 
   const file = await readPdf(rawBody, request.headers);
-  const path = `contratos/${slug(expense.supplier)}/contrato.pdf`;
+  const path = `contratos/${expenseId}/contrato.pdf`;
   const target = bucket().file(path);
-  await target.save(file.buffer, {
-    resumable: false,
-    contentType: 'application/pdf',
-    metadata: {
+  try {
+    await target.save(file.buffer, {
+      resumable: false,
+      contentType: 'application/pdf',
       metadata: {
-        supplier: expense.supplier,
-        expenseId,
+        metadata: {
+          supplier: expense.supplier,
+          expenseId,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    console.error('[contractStorageError]', { expenseId, error });
+    throw new ContractError(500, 'Não foi possível armazenar o contrato');
+  }
 
   if (expense.contract?.path && expense.contract.path !== path) {
     await deleteContractObject(expense.contract.path);
