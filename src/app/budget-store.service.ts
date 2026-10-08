@@ -27,6 +27,7 @@ export class BudgetStore {
 
   readonly budget = signal<WeddingBudget>(createDefaultBudget());
   readonly responsibles = signal<string[]>([]);
+  readonly userNames = signal<Record<string, string>>({});
   readonly saving = signal(false);
   readonly error = signal('');
   readonly migrationCandidate = signal<WeddingBudget | null>(null);
@@ -97,10 +98,11 @@ export class BudgetStore {
     this.loadedUserId = userId ?? null;
     this.error.set('');
     try {
-      const { responsibles, ...budget } = await firstValueFrom(
+      const { responsibles, userNames, ...budget } = await firstValueFrom(
         this.api.getBudget(),
       );
       this.responsibles.set(responsibles ?? []);
+      this.userNames.set(userNames ?? {});
       this.budget.set(budget);
       if (budget.expenses.length === 0) {
         this.findMigrationCandidate();
@@ -110,6 +112,10 @@ export class BudgetStore {
       this.loadedUserId = null;
       this.error.set('Não foi possível carregar o planejamento.');
     }
+  }
+
+  displayName(email: string): string {
+    return this.userNames()[email.toLowerCase()] ?? email;
   }
 
   updateParameters(

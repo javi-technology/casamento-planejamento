@@ -49,7 +49,9 @@ Protegidas (middleware de auth): `GET /api/me`, `GET|PUT /api/budget`,
 
 `GET /api/budget` também devolve `responsibles` (e-mails de `ALLOWED_EMAILS`),
 usados no seletor de responsável por categoria (`Category.responsible`,
-opcional). `PUT /api/budget` e `POST /api/budget/import` rejeitam responsável
+opcional), e `userNames` (e-mail em minúsculas → nome, só dos responsáveis com
+nome configurado). `GET /api/me` devolve `{ email, name }`; sem nome
+configurado, `name` repete o e-mail. `PUT /api/budget` e `POST /api/budget/import` rejeitam responsável
 fora dessa lista.
 
 ### Autenticação
@@ -59,6 +61,13 @@ O login usa apenas o e-mail digitado. A API compara com `ALLOWED_EMAILS`
 frontend envia o e-mail no cabeçalho `X-User-Email` (via `auth.interceptor`).
 Não há senha nem verificação de posse do e-mail; isso é intencional. Não
 introduza outro mecanismo sem uma issue que o peça.
+
+### Nomes de usuário
+
+Os nomes são só de exibição; o login continua sendo o e-mail. Defina-os em
+`USER_NAMES`, com pares `e-mail:Nome` separados por vírgula. E-mails sem nome
+aparecem como e-mail. No deploy, o valor vem da variável `USER_NAMES` do
+repositório (Settings → Variables); nomes não podem conter vírgula.
 
 ## Comandos
 
@@ -79,6 +88,7 @@ Para rodar localmente crie `functions/.env.local` (não versionado):
 
 ```bash
 ALLOWED_EMAILS=teste@example.com,outro@example.com
+USER_NAMES=teste@example.com:Maria,outro@example.com:João
 ```
 
 ## Convenções de código

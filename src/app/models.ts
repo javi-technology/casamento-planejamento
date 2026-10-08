@@ -34,6 +34,7 @@ export interface WeddingBudget {
 
 export interface BudgetResponse extends WeddingBudget {
   responsibles?: string[];
+  userNames?: Record<string, string>;
 }
 
 export interface CategorySummary extends Category {

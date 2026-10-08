@@ -169,6 +169,23 @@ describe('BudgetStore', () => {
     expect('responsibles' in store.budget()).toBeFalse();
   });
 
+  it('carrega os nomes dos usuários e usa o e-mail quando não há nome', async () => {
+    api.getBudget.and.returnValue(
+      of({
+        ...createDefaultBudget(),
+        responsibles: ['noiva@example.com', 'noivo@example.com'],
+        userNames: { 'noiva@example.com': 'Maria' },
+      }),
+    );
+
+    await store.load();
+
+    expect(store.displayName('noiva@example.com')).toBe('Maria');
+    expect(store.displayName('NOIVA@example.com')).toBe('Maria');
+    expect(store.displayName('noivo@example.com')).toBe('noivo@example.com');
+    expect('userNames' in store.budget()).toBeFalse();
+  });
+
   it('define o responsável de uma categoria e salva no servidor', fakeAsync(() => {
     const categoryId = store.budget().categories[0].id;
     api.updateBudget.and.callFake((budget) => of({ ...budget, expenses: [] }));
