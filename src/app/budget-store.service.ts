@@ -98,10 +98,11 @@ export class BudgetStore {
     this.loadedUserId = userId ?? null;
     this.error.set('');
     try {
-      const { responsibles, ...budget } = await firstValueFrom(
+      const { responsibles, userNames, ...budget } = await firstValueFrom(
         this.api.getBudget(),
       );
       this.responsibles.set(responsibles ?? []);
+      this.userNames.set(userNames ?? {});
       this.budget.set(budget);
       if (budget.expenses.length === 0) {
         this.findMigrationCandidate();
@@ -114,7 +115,7 @@ export class BudgetStore {
   }
 
   displayName(email: string): string {
-    return email;
+    return this.userNames()[email.toLowerCase()] ?? email;
   }
 
   updateParameters(

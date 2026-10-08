@@ -63,7 +63,9 @@ describe('AppComponent', () => {
     ).toBeTruthy();
   });
 
-  it('exibe o nome do usuário no cabeçalho em vez do e-mail', () => {
+  it('exibe o nome do usuário no cabeçalho em vez do e-mail', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
     const header = root.querySelector('header')!;
 
     expect(header.textContent).toContain('Maria');
