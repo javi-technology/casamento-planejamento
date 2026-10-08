@@ -11,9 +11,11 @@ describe('AppComponent', () => {
   let root: HTMLElement;
 
   const tab = (name: string): HTMLButtonElement | undefined =>
-    Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tab"]')).find(
-      (button) => button.textContent?.trim() === name,
-    );
+    Array.from(
+      root.querySelectorAll<HTMLButtonElement>(
+        'nav[aria-label="Seções do planejamento"] button',
+      ),
+    ).find((button) => button.textContent?.trim() === name);
   const visible = (selector: string): boolean => {
     const element = root.querySelector<HTMLElement>(selector);
     return !!element && element.offsetParent !== null;
@@ -56,17 +58,22 @@ describe('AppComponent', () => {
   });
 
   it('exibe as abas Orçamento e Convidados com Orçamento selecionada', () => {
-    expect(tab('Orçamento')?.getAttribute('aria-selected')).toBe('true');
-    expect(tab('Convidados')?.getAttribute('aria-selected')).toBe('false');
+    expect(tab('Orçamento')?.getAttribute('aria-current')).toBe('true');
+    expect(tab('Convidados')?.hasAttribute('aria-current')).toBeFalse();
     expect(visible('app-expense-section')).toBeTrue();
     expect(visible('[data-guests-tab]')).toBeFalse();
+  });
+
+  it('não anuncia semântica de abas que não implementa', () => {
+    expect(root.querySelector('[role="tablist"], [role="tab"]')).toBeNull();
   });
 
   it('mostra a aba Convidados e esconde o orçamento ao trocar de aba', () => {
     tab('Convidados')!.click();
     fixture.detectChanges();
 
-    expect(tab('Convidados')?.getAttribute('aria-selected')).toBe('true');
+    expect(tab('Convidados')?.getAttribute('aria-current')).toBe('true');
+    expect(tab('Orçamento')?.hasAttribute('aria-current')).toBeFalse();
     expect(visible('[data-guests-tab]')).toBeTrue();
     expect(visible('app-expense-section')).toBeFalse();
     expect(visible('app-category-table')).toBeFalse();
