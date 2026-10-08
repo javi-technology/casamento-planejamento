@@ -15,6 +15,12 @@ export function parseAllowedEmails(
     .filter(Boolean);
 }
 
+export function parseUserNames(
+  _value = process.env.USER_NAMES ?? '',
+): Record<string, string> {
+  return {};
+}
+
 export function isAllowed(email: string | undefined, list: string[]): boolean {
   return Boolean(
     email &&

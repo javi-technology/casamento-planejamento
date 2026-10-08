@@ -21,7 +21,11 @@ jest.mock('firebase-functions/v2/https', () => ({
 }));
 
 import { app } from './index';
-import { isAllowed, parseAllowedEmails } from './middleware/auth.middleware';
+import {
+  isAllowed,
+  parseAllowedEmails,
+  parseUserNames,
+} from './middleware/auth.middleware';
 import { slug } from './contract/contract.service';
 import { validateBudgetInput } from './budget/budget.validation';
 import * as budgetService from './budget/budget.service';
@@ -37,6 +41,21 @@ describe('auth helpers', () => {
   it('compara e-mails sem diferenciar maiúsculas', () => {
     expect(isAllowed('Pessoa@Example.com', ['pessoa@example.com'])).toBe(true);
     expect(isAllowed('outro@example.com', ['pessoa@example.com'])).toBe(false);
+  });
+
+  it('lê nomes de USER_NAMES, ignorando entradas inválidas', () => {
+    expect(
+      parseUserNames(
+        'Noiva@Example.com:Maria, noivo@example.com : João Pedro ,invalido,:semEmail,a@b.com:',
+      ),
+    ).toEqual({
+      'noiva@example.com': 'Maria',
+      'noivo@example.com': 'João Pedro',
+    });
+  });
+
+  it('devolve mapa vazio quando USER_NAMES não está definida', () => {
+    expect(parseUserNames('')).toEqual({});
   });
 
   it('gera slug sem acentos e caracteres especiais', () => {
@@ -212,6 +231,45 @@ describe('API de login e autenticação', () => {
       'noiva@example.com',
       'noivo@example.com',
     ]);
+  });
+
+  it('informa os nomes dos responsáveis que têm nome configurado', async () => {
+    process.env.ALLOWED_EMAILS = 'noiva@example.com, noivo@example.com';
+    process.env.USER_NAMES = 'Noiva@example.com:Maria,fora@example.com:Fulano';
+    jest.spyOn(budgetService, 'getBudget').mockResolvedValue({
+      guests: 100,
+      maxBudget: 1000,
+      categories: [],
+      expenses: [],
+    });
+
+    const response = await request(app)
+      .get('/api/budget')
+      .set('X-User-Email', 'noiva@example.com');
+
+    expect(response.body.userNames).toEqual({
+      'noiva@example.com': 'Maria',
+    });
+    delete process.env.USER_NAMES;
+  });
+
+  it('GET /api/me devolve o nome do usuário, com e-mail como fallback', async () => {
+    process.env.ALLOWED_EMAILS = 'noiva@example.com,noivo@example.com';
+    process.env.USER_NAMES = 'noiva@example.com:Maria';
+
+    const named = await request(app)
+      .get('/api/me')
+      .set('X-User-Email', 'NOIVA@example.com');
+    const unnamed = await request(app)
+      .get('/api/me')
+      .set('X-User-Email', 'noivo@example.com');
+
+    expect(named.body).toEqual({ email: 'NOIVA@example.com', name: 'Maria' });
+    expect(unnamed.body).toEqual({
+      email: 'noivo@example.com',
+      name: 'noivo@example.com',
+    });
+    delete process.env.USER_NAMES;
   });
 
   it('valida orçamento antes de acessar o banco', async () => {
