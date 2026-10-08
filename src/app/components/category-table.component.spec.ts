@@ -43,6 +43,19 @@ describe('CategoryTableComponent', () => {
     ]);
   });
 
+  it('exibe o nome do responsável e grava o e-mail', () => {
+    store.userNames.set({ 'noiva@example.com': 'Maria' });
+    fixture.detectChanges();
+    const options = Array.from(selects()[0].options);
+
+    expect(options.map((o) => o.text.trim())).toEqual([
+      'Sem responsável',
+      'Maria',
+      'noivo@example.com',
+    ]);
+    expect(options[1].value).toContain('noiva@example.com');
+  });
+
   it('atribui o responsável escolhido à categoria', () => {
     const select = selects()[0];
     select.value = 'noivo@example.com';

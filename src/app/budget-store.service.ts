@@ -27,6 +27,7 @@ export class BudgetStore {
 
   readonly budget = signal<WeddingBudget>(createDefaultBudget());
   readonly responsibles = signal<string[]>([]);
+  readonly userNames = signal<Record<string, string>>({});
   readonly saving = signal(false);
   readonly error = signal('');
   readonly migrationCandidate = signal<WeddingBudget | null>(null);
@@ -110,6 +111,10 @@ export class BudgetStore {
       this.loadedUserId = null;
       this.error.set('Não foi possível carregar o planejamento.');
     }
+  }
+
+  displayName(email: string): string {
+    return email;
   }
 
   updateParameters(

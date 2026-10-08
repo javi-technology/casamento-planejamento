@@ -23,7 +23,13 @@ describe('AppComponent', () => {
 
   beforeEach(() => {
     const api = jasmine.createSpyObj<ApiService>('ApiService', ['getBudget']);
-    api.getBudget.and.returnValue(of(createDefaultBudget()));
+    api.getBudget.and.returnValue(
+      of({
+        ...createDefaultBudget(),
+        responsibles: ['noiva@example.com'],
+        userNames: { 'noiva@example.com': 'Maria' },
+      }),
+    );
     const auth = {
       email: signal<string | null>('noiva@example.com'),
       ready: signal(true),
@@ -55,6 +61,13 @@ describe('AppComponent', () => {
       expenses!.compareDocumentPosition(categories!) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it('exibe o nome do usuário no cabeçalho em vez do e-mail', () => {
+    const header = root.querySelector('header')!;
+
+    expect(header.textContent).toContain('Maria');
+    expect(header.textContent).not.toContain('noiva@example.com');
   });
 
   it('exibe as abas Orçamento e Convidados com Orçamento selecionada', () => {
