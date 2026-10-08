@@ -47,6 +47,22 @@ describe('ExpenseSectionComponent - upload de contrato', () => {
     expect(component.contractError).toBe('');
   });
 
+  it('envia PDF identificado com tipo genérico quando a extensão é .pdf', () => {
+    api.uploadContract.and.returnValue(of({ contract: {} as never }));
+
+    component.uploadContract(
+      'exp-1',
+      selectFile(
+        new File(['%PDF'], 'contrato.pdf', {
+          type: 'application/octet-stream',
+        }),
+      ),
+    );
+
+    expect(api.uploadContract).toHaveBeenCalled();
+    expect(component.contractError).toBe('');
+  });
+
   it('rejeita arquivo que não é PDF sem chamar a API', () => {
     component.uploadContract(
       'exp-1',

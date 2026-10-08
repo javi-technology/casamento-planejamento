@@ -17,7 +17,12 @@ jest.mock('../budget/budget.service', () => ({
 }));
 
 import * as budgetService from '../budget/budget.service';
-import { uploadContract } from './contract.service';
+import {
+  ContractError,
+  removeContract,
+  uploadContract,
+} from './contract.service';
+import { contractErrorHandler } from './contract.controller';
 
 const BOUNDARY = 'testboundary';
 
@@ -40,6 +45,7 @@ describe('uploadContract', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    file.mockImplementation(() => ({ save, delete: jest.fn() }));
     delete process.env.CONTRACTS_BUCKET;
     (budgetService.getExpense as jest.Mock).mockResolvedValue({
       id: 'exp-1',
@@ -59,7 +65,7 @@ describe('uploadContract', () => {
     await uploadContract(uploadRequest('application/pdf'), 'exp-1');
 
     expect(bucket).toHaveBeenCalledWith('javitech-8797d.appspot.com');
-    expect(file).toHaveBeenCalledWith('contratos/buffet-sabor/contrato.pdf');
+    expect(file).toHaveBeenCalledWith('contratos/exp-1/contrato.pdf');
     expect(save).toHaveBeenCalled();
   });
 
@@ -79,6 +85,62 @@ describe('uploadContract', () => {
 
     expect(contract?.contentType).toBe('application/pdf');
     expect(save).toHaveBeenCalled();
+  });
+
+  it('usa um caminho por despesa mesmo com fornecedores de mesmo nome', async () => {
+    (budgetService.getExpense as jest.Mock).mockImplementation(
+      async (id: string) => ({ id, supplier: 'Buffet Sabor' }),
+    );
+
+    const first = await uploadContract(uploadRequest('application/pdf'), 'a');
+    const second = await uploadContract(uploadRequest('application/pdf'), 'b');
+
+    expect(first?.path).toBe('contratos/a/contrato.pdf');
+    expect(second?.path).toBe('contratos/b/contrato.pdf');
+  });
+
+  it('remover o contrato de uma despesa não apaga o arquivo da outra', async () => {
+    const remove = jest.fn();
+    file.mockImplementation(() => ({ save, delete: remove }));
+    (budgetService.getExpense as jest.Mock).mockResolvedValue({
+      id: 'a',
+      supplier: 'Buffet Sabor',
+      contract: { path: 'contratos/a/contrato.pdf' },
+    });
+
+    await removeContract('a');
+
+    expect(file).toHaveBeenCalledTimes(1);
+    expect(file).toHaveBeenCalledWith('contratos/a/contrato.pdf');
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('informa falha de armazenamento sem expor detalhes internos', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    save.mockRejectedValueOnce(new Error('bucket secreto não existe'));
+
+    await expect(
+      uploadContract(uploadRequest('application/pdf'), 'exp-1'),
+    ).rejects.toMatchObject({
+      status: 500,
+      message: 'Não foi possível armazenar o contrato',
+    });
+  });
+
+  it('responde 500 com mensagem fixa para falha de armazenamento', async () => {
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const error = new ContractError(
+      500,
+      'Não foi possível armazenar o contrato',
+    );
+
+    contractErrorHandler(error, {} as never, res as never, jest.fn());
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Internal Server Error',
+      message: 'Não foi possível armazenar o contrato',
+    });
   });
 
   it('rejeita arquivo que não é PDF', async () => {
