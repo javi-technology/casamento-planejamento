@@ -69,6 +69,13 @@ Firebase Authentication e grava `users/{uid}` (`{ name, email, createdAt }`) no
 Firestore. Respostas: 201, 400 (dados inválidos), 403 (código inválido ou
 `SIGNUP_CODE` ausente) e 409 (e-mail já cadastrado).
 
+A conta é criada desabilitada e só é habilitada depois de gravar `users/{uid}`.
+Se um dos passos falhar, a API remove a conta incompleta e registra no log
+(`[signup] não foi possível remover a conta incompleta`, com `uid` e e-mail) se
+nem a remoção funcionou. Um novo cadastro com o mesmo e-mail descarta a conta
+que ficou desabilitada, nunca entrou e tem mais de 60 s, e repete uma vez; contas
+habilitadas, que já entraram ou recentes continuam respondendo 409.
+
 O login é feito pelo SDK do Firebase no frontend, que envia
 `Authorization: Bearer <ID token>`. O middleware valida o token com
 `verifyIdToken` (401 se ausente ou inválido) e exige o registro em
@@ -134,9 +141,9 @@ Passo a passo:
 6. Após o merge e a validação em `develop`, abra PR `develop` → `main` para
    liberar.
 
-Observação: o workflow `.github/workflows/ci-cd.yml` hoje roda em push/PR para
-`main`. Ao adotar `develop`, estenda os gatilhos de PR para incluir `develop`
-(o deploy deve continuar restrito a `main`).
+Observação: o workflow `.github/workflows/ci-cd.yml` roda em push para `main` e
+`develop` e em todo PR, inclusive PRs empilhados sobre outra branch `issue-<n>`.
+Build e testes valem para todos; o deploy continua restrito a push em `main`.
 
 Mensagens de commit seguem Conventional Commits em português
 (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`), por exemplo
