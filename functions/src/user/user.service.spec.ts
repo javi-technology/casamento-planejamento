@@ -165,6 +165,18 @@ describe('user.service', () => {
       expect(user.id).toBe('uid-maria');
     });
 
+    it('trata último login igual ao instante de criação como "nunca entrou"', async () => {
+      const created = new Date(Date.now() - 10 * 60_000).toUTCString();
+      getAuthUserByEmail.mockResolvedValue(
+        authRecord({ creationTime: created, lastSignInTime: created }),
+      );
+
+      const user = await createUser(NEW_USER);
+
+      expect(deleteAuthUser).toHaveBeenCalledWith('uid-orfao');
+      expect(user.id).toBe('uid-maria');
+    });
+
     it.each([
       ['conta habilitada', authRecord({ disabled: false })],
       [

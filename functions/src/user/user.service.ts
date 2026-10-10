@@ -88,10 +88,15 @@ async function discardUnfinishedSignup(email: string): Promise<boolean> {
     return false;
   }
 
-  const createdAt = Date.parse(existing.metadata.creationTime);
+  const { creationTime, lastSignInTime } = existing.metadata;
+  const createdAt = Date.parse(creationTime);
+  // O Auth (e o emulador) pode preencher o último login com o instante da
+  // criação mesmo para quem nunca entrou.
+  const neverSignedIn =
+    !lastSignInTime || Date.parse(lastSignInTime) <= createdAt;
   const unfinished =
     existing.disabled &&
-    !existing.metadata.lastSignInTime &&
+    neverSignedIn &&
     Date.now() - createdAt > UNFINISHED_SIGNUP_GRACE_MS;
   if (!unfinished) {
     return false;
