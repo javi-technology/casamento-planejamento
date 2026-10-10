@@ -6,8 +6,10 @@ import {
   CategorySummary,
   DEFAULT_CATEGORIES,
   Expense,
+  PERCENTAGE_PROFILES,
   User,
   WeddingBudget,
+  slugify,
 } from './models';
 
 export const STORAGE_KEY = 'casamento-gastos:v1';
@@ -128,19 +130,24 @@ export class BudgetStore {
     this.scheduleBudgetSave();
   }
 
-  applyPercentageProfile(profileId: string): void {}
+  applyPercentageProfile(profileId: string): void {
+    const categories = this.categoriesWithProfile(profileId);
+    if (!categories) {
+      return;
+    }
+    this.budget.update((budget) => ({ ...budget, categories }));
+    this.scheduleBudgetSave();
+  }
 
   profileTotal(profileId: string): number {
-    return 0;
+    return (this.categoriesWithProfile(profileId) ?? []).reduce(
+      (total, category) => total + category.suggestedPct,
+      0,
+    );
   }
 
   addCategory(name: string, suggestedPct = 0, perGuest = false): void {
-    const id = `${name
-      .toLocaleLowerCase('pt-BR')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')}-${Date.now()}`;
+    const id = `${slugify(name)}-${Date.now()}`;
     this.budget.update((budget) => ({
       ...budget,
       categories: [
@@ -240,6 +247,20 @@ export class BudgetStore {
   discardLegacy(): void {
     this.removeLegacyData();
     this.migrationCandidate.set(null);
+  }
+
+  private categoriesWithProfile(profileId: string): Category[] | null {
+    const profile = PERCENTAGE_PROFILES.find(({ id }) => id === profileId);
+    if (!profile) {
+      return null;
+    }
+    return this.budget().categories.map((category) => {
+      const share = profile.shares.find(
+        ({ categoryId }) =>
+          categoryId === category.id || categoryId === slugify(category.name),
+      );
+      return share ? { ...category, suggestedPct: share.pct } : category;
+    });
   }
 
   private scheduleBudgetSave(): void {
