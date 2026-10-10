@@ -14,7 +14,7 @@ fornecedores/despesas por categoria e armazenar contratos em PDF.
 - **Hospedagem:** Firebase Hosting; `/api/**` é encaminhado para a Function.
 
 ```text
-Angular ── X-User-Email ──► Firebase Hosting ── /api/** ──► Express / Functions
+Angular ──── ID token ────► Firebase Hosting ── /api/** ──► Express / Functions
                                                                ├── Firestore
                                                                └── Cloud Storage
 ```
@@ -33,7 +33,9 @@ src/app/
   core/                      api.service (HTTP), auth.service, auth.interceptor
 functions/src/
   index.ts                   App Express, rotas e tratamento de erros
-  middleware/auth.middleware.ts   Valida X-User-Email contra a allowlist
+  firestore.ts               Instância do Firestore (banco nomeado)
+  middleware/auth.middleware.ts   Valida o ID token e exige cadastro em `users`
+  user/                      cadastro (signup), serviço e validação de usuários
   budget/                    controller, service, validation, defaults, types
   contract/                  upload/download/remoção de contratos (busboy + Storage)
   api.spec.ts                Testes da API (jest + supertest)
@@ -41,33 +43,40 @@ functions/src/
 
 ### Rotas da API
 
-Públicas: `GET /api/health`, `POST /api/login`.
+Públicas: `GET /api/health`, `POST /api/signup`.
 Protegidas (middleware de auth): `GET /api/me`, `GET|PUT /api/budget`,
 `POST /api/budget/import`, `POST /api/expenses`,
 `PUT|DELETE /api/expenses/:id`,
 `POST|GET|DELETE /api/expenses/:id/contract`.
 
-`GET /api/budget` também devolve `responsibles` (e-mails de `ALLOWED_EMAILS`),
-usados no seletor de responsável por categoria (`Category.responsible`,
-opcional), e `userNames` (e-mail em minúsculas → nome, só dos responsáveis com
-nome configurado). `GET /api/me` devolve `{ email, name }`; sem nome
-configurado, `name` repete o e-mail. `PUT /api/budget` e `POST /api/budget/import` rejeitam responsável
-fora dessa lista.
+`GET /api/me` devolve `{ id, email, name }`. `GET /api/budget` também devolve
+`users` (`{ id, name, email }` dos cadastrados, ordenados por nome), usados no
+seletor de responsável por categoria. `Category.responsible` (opcional) guarda
+o `id` do usuário; `PUT /api/budget` e `POST /api/budget/import` rejeitam valor
+que não seja de um usuário cadastrado (uma atribuição já salva que não mudou é
+aceita).
+
+Orçamentos antigos guardavam o e-mail do responsável. Na leitura (e na
+importação), um e-mail que corresponde a um usuário cadastrado vira o `id`
+dele; os demais ficam sem responsável. O valor convertido é gravado no próximo
+salvamento.
 
 ### Autenticação
 
-O login usa apenas o e-mail digitado. A API compara com `ALLOWED_EMAILS`
-(separada por vírgulas, sem diferenciar maiúsculas/minúsculas). Após o login, o
-frontend envia o e-mail no cabeçalho `X-User-Email` (via `auth.interceptor`).
-Não há senha nem verificação de posse do e-mail; isso é intencional. Não
-introduza outro mecanismo sem uma issue que o peça.
+Usuários se cadastram com nome, e-mail, senha e código de convite em
+`POST /api/signup`. A API confere o código com `SIGNUP_CODE`, cria a conta no
+Firebase Authentication e grava `users/{uid}` (`{ name, email, createdAt }`) no
+Firestore. Respostas: 201, 400 (dados inválidos), 403 (código inválido ou
+`SIGNUP_CODE` ausente) e 409 (e-mail já cadastrado).
 
-### Nomes de usuário
+O login é feito pelo SDK do Firebase no frontend, que envia
+`Authorization: Bearer <ID token>`. O middleware valida o token com
+`verifyIdToken` (401 se ausente ou inválido) e exige o registro em
+`users/{uid}` (403 se não existir). Assim, contas criadas direto pelo SDK, sem
+o código de convite, não acessam a API.
 
-Os nomes são só de exibição; o login continua sendo o e-mail. Defina-os em
-`USER_NAMES`, com pares `e-mail:Nome` separados por vírgula. E-mails sem nome
-aparecem como e-mail. No deploy, o valor vem da variável `USER_NAMES` do
-repositório (Settings → Variables); nomes não podem conter vírgula.
+Fora de escopo por enquanto: recuperação de senha, verificação de e-mail,
+edição de perfil e papéis diferentes entre usuários.
 
 ## Comandos
 
@@ -84,11 +93,11 @@ npx prettier --check .     # formatação (obrigatória no CI)
 npx prettier --write .     # corrige formatação
 ```
 
-Para rodar localmente crie `functions/.env.local` (não versionado):
+Para rodar localmente crie `functions/.env.local` (não versionado). No deploy,
+`SIGNUP_CODE` vem da variável do repositório (Settings → Variables):
 
 ```bash
-ALLOWED_EMAILS=teste@example.com,outro@example.com
-USER_NAMES=teste@example.com:Maria,outro@example.com:João
+SIGNUP_CODE=convite-local
 ```
 
 ## Convenções de código
