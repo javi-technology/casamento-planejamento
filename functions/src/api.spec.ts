@@ -162,6 +162,14 @@ describe('migração de responsável por e-mail', () => {
     ).toEqual([category('bebidas')]);
   });
 
+  it('não altera categorias e responsáveis inválidos, deixando para a validação', () => {
+    const categories = [null, { ...category('bebidas'), responsible: 42 }];
+
+    expect(migrateResponsibles(categories as never[], [MARIA])).toEqual(
+      categories,
+    );
+  });
+
   it('mantém ids e categorias sem responsável', () => {
     const categories = [category('bebidas', JOAO.id), category('buffet')];
 

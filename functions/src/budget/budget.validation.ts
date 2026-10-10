@@ -1,4 +1,3 @@
-import { isAllowed } from '../middleware/auth.middleware';
 import { Expense, WeddingBudget } from './types';
 
 export interface ValidationError {
@@ -9,7 +8,7 @@ export interface ValidationError {
 export function validateBudgetInput(
   value: unknown,
   requireExpenses = false,
-  allowedResponsibles: string[] = [],
+  userIds: string[] = [],
   currentResponsibles: Record<string, string | undefined> = {},
 ): ValidationError[] {
   const input = value as Partial<WeddingBudget> | null;
@@ -55,13 +54,13 @@ export function validateBudgetInput(
         category?.responsible !== undefined &&
         (typeof category.responsible !== 'string' ||
           !(
-            isAllowed(category.responsible, allowedResponsibles) ||
-            isCurrentResponsible(category, currentResponsibles)
+            userIds.includes(category.responsible) ||
+            currentResponsibles[category.id] === category.responsible
           ))
       ) {
         errors.push({
           field: `categories[${index}].responsible`,
-          message: 'Responsável não está na lista permitida',
+          message: 'Responsável não é um usuário cadastrado',
         });
       }
     });
@@ -80,24 +79,6 @@ export function validateBudgetInput(
   }
 
   return errors;
-}
-
-// Mantém a atribuição já salva mesmo que o e-mail tenha saído da allowlist.
-function isCurrentResponsible(
-  category: { id: string; responsible?: string },
-  current: Record<string, string | undefined>,
-): boolean {
-  return isAllowed(category.responsible, [current[category.id] ?? '']);
-}
-
-export function normalizeResponsibles<T extends { responsible?: string }>(
-  categories: T[],
-): T[] {
-  return categories.map((category) =>
-    category.responsible === undefined
-      ? category
-      : { ...category, responsible: category.responsible.toLowerCase() },
-  );
 }
 
 export function validateExpense(
@@ -144,9 +125,22 @@ export function isNonNegativeNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
+// Orçamentos antigos guardam o e-mail do responsável; troca pelo id do usuário.
+// E-mail sem usuário cadastrado deixa a categoria sem responsável.
 export function migrateResponsibles<T extends { responsible?: string }>(
   categories: T[],
-  _users: { id: string; email: string }[],
+  users: { id: string; email: string }[],
 ): T[] {
-  return categories;
+  return categories.map((category) => {
+    if (
+      typeof category?.responsible !== 'string' ||
+      !category.responsible.includes('@')
+    ) {
+      return category;
+    }
+    const email = category.responsible.toLowerCase();
+    const user = users.find((candidate) => candidate.email === email);
+    const { responsible: _legacy, ...rest } = category;
+    return user ? { ...category, responsible: user.id } : (rest as T);
+  });
 }

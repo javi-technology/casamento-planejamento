@@ -1,16 +1,31 @@
 import { Request, Response, NextFunction } from 'express';
 import * as budgetService from './budget.service';
 import {
-  normalizeResponsibles,
+  migrateResponsibles,
   validateBudgetInput,
   validateExpense,
 } from './budget.validation';
 import { Expense, WeddingBudget } from './types';
 import { deleteContractObject } from '../contract/contract.service';
-import {
-  parseAllowedEmails,
-  parseUserNames,
-} from '../middleware/auth.middleware';
+import { listUsers } from '../user/user.service';
+import { User } from '../user/user.types';
+
+async function budgetWithUsers(): Promise<{
+  budget: WeddingBudget;
+  users: User[];
+}> {
+  const [budget, users] = await Promise.all([
+    budgetService.getBudget(),
+    listUsers(),
+  ]);
+  return {
+    budget: {
+      ...budget,
+      categories: migrateResponsibles(budget.categories, users),
+    },
+    users,
+  };
+}
 
 function validationResponse(res: Response, errors: unknown[]): void {
   res.status(400).json({
@@ -26,17 +41,8 @@ export async function getBudget(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const responsibles = parseAllowedEmails();
-    const names = parseUserNames();
-    res.json({
-      ...(await budgetService.getBudget()),
-      responsibles,
-      userNames: Object.fromEntries(
-        responsibles
-          .filter((email) => names[email])
-          .map((email) => [email, names[email]]),
-      ),
-    });
+    const { budget, users } = await budgetWithUsers();
+    res.json({ ...budget, users });
   } catch (error) {
     next(error);
   }
@@ -48,11 +54,11 @@ export async function updateBudget(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const current = await budgetService.getBudget();
+    const { budget: current, users } = await budgetWithUsers();
     const errors = validateBudgetInput(
       req.body,
       false,
-      parseAllowedEmails(),
+      users.map((user) => user.id),
       Object.fromEntries(current.categories.map((c) => [c.id, c.responsible])),
     );
     if (errors.length) {
@@ -64,7 +70,7 @@ export async function updateBudget(
       await budgetService.updateBudget({
         guests: req.body.guests,
         maxBudget: req.body.maxBudget,
-        categories: normalizeResponsibles(req.body.categories),
+        categories: req.body.categories,
       }),
     );
   } catch (error) {
@@ -77,19 +83,25 @@ export async function importBudget(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const errors = validateBudgetInput(req.body, true, parseAllowedEmails());
-  if (errors.length) {
-    validationResponse(res, errors);
-    return;
-  }
-
   try {
-    res.json(
-      await budgetService.importBudget({
-        ...(req.body as WeddingBudget),
-        categories: normalizeResponsibles(req.body.categories),
-      }),
+    const users = await listUsers();
+    const input = Array.isArray(req.body?.categories)
+      ? {
+          ...req.body,
+          categories: migrateResponsibles(req.body.categories, users),
+        }
+      : req.body;
+    const errors = validateBudgetInput(
+      input,
+      true,
+      users.map((user) => user.id),
     );
+    if (errors.length) {
+      validationResponse(res, errors);
+      return;
+    }
+
+    res.json(await budgetService.importBudget(input as WeddingBudget));
   } catch (error) {
     next(error);
   }

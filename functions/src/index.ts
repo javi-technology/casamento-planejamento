@@ -18,14 +18,10 @@ import { contractErrorHandler } from './contract/contract.controller';
 import {
   authMiddleware,
   AuthenticatedRequest,
-  isAllowed,
-  parseAllowedEmails,
-  parseUserNames,
 } from './middleware/auth.middleware';
+import { signup } from './user/user.controller';
 
 admin.initializeApp();
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -43,32 +39,12 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', project: 'casamento-planejamento' });
 });
 
-app.post('/api/login', (req, res) => {
-  const email =
-    typeof req.body?.email === 'string' ? req.body.email.trim() : '';
-  if (!email || !EMAIL_PATTERN.test(email)) {
-    res
-      .status(400)
-      .json({ error: 'Bad Request', message: 'Informe um e-mail válido' });
-    return;
-  }
-  if (!isAllowed(email, parseAllowedEmails())) {
-    res
-      .status(403)
-      .json({ error: 'Forbidden', message: 'E-mail não autorizado' });
-    return;
-  }
-  res.json({ email });
-});
+app.post('/api/signup', signup);
 
 app.use('/api/*', authMiddleware);
 
 app.get('/api/me', (req, res) => {
-  const user = (req as AuthenticatedRequest).user;
-  res.json({
-    email: user.email,
-    name: parseUserNames()[user.email.toLowerCase()] ?? user.email,
-  });
+  res.json((req as AuthenticatedRequest).user);
 });
 app.get('/api/budget', getBudget);
 app.put('/api/budget', updateBudget);

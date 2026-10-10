@@ -1,41 +1,10 @@
+import { getAuth } from 'firebase-admin/auth';
 import { NextFunction, Request, Response } from 'express';
+import { getUser } from '../user/user.service';
+import { User } from '../user/user.types';
 
 export interface AuthenticatedRequest extends Request {
-  user: {
-    email: string;
-  };
-}
-
-export function parseAllowedEmails(
-  value = process.env.ALLOWED_EMAILS ?? '',
-): string[] {
-  return value
-    .split(',')
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-// Formato: "email1:Nome 1,email2:Nome 2". Entradas sem e-mail ou nome são ignoradas.
-export function parseUserNames(
-  value = process.env.USER_NAMES ?? '',
-): Record<string, string> {
-  const names: Record<string, string> = {};
-  for (const entry of value.split(',')) {
-    const separator = entry.indexOf(':');
-    const email = entry.slice(0, separator).trim().toLowerCase();
-    const name = entry.slice(separator + 1).trim();
-    if (separator > 0 && email && name) {
-      names[email] = name;
-    }
-  }
-  return names;
-}
-
-export function isAllowed(email: string | undefined, list: string[]): boolean {
-  return Boolean(
-    email &&
-    list.some((allowed) => allowed.toLowerCase() === email.toLowerCase()),
-  );
+  user: User;
 }
 
 export async function authMiddleware(
@@ -43,24 +12,33 @@ export async function authMiddleware(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const email = req.headers['x-user-email'];
-  const normalizedEmail = Array.isArray(email)
-    ? email[0]?.trim()
-    : email?.trim();
-  if (!normalizedEmail) {
+  const [scheme, token] = (req.headers.authorization ?? '').split(' ');
+  if (scheme !== 'Bearer' || !token) {
+    res.status(401).json({ error: 'Unauthorized', message: 'Faça login' });
+    return;
+  }
+
+  let uid: string;
+  try {
+    ({ uid } = await getAuth().verifyIdToken(token));
+  } catch {
     res
       .status(401)
-      .json({ error: 'Unauthorized', message: 'Informe seu e-mail' });
+      .json({ error: 'Unauthorized', message: 'Sessão inválida ou expirada' });
     return;
   }
 
-  if (!isAllowed(normalizedEmail, parseAllowedEmails())) {
-    res
-      .status(403)
-      .json({ error: 'Forbidden', message: 'E-mail não autorizado' });
-    return;
+  try {
+    const user = await getUser(uid);
+    if (!user) {
+      res
+        .status(403)
+        .json({ error: 'Forbidden', message: 'Usuário não cadastrado' });
+      return;
+    }
+    (req as AuthenticatedRequest).user = user;
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  (req as AuthenticatedRequest).user = { email: normalizedEmail };
-  next();
 }
