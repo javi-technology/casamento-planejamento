@@ -1,13 +1,7 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getApp } from 'firebase-admin/app';
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../firestore';
 import { DEFAULT_BUDGET } from './defaults';
 import { Category, Expense, WeddingBudget } from './types';
-
-const DATABASE_ID = 'casamentoplanejamentojavidb';
-
-function db() {
-  return getFirestore(getApp(), DATABASE_ID);
-}
 
 function budgetRef() {
   return db().collection('budgets').doc('default');

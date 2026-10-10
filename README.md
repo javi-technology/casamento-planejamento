@@ -7,13 +7,14 @@ no Firestore e os contratos no Cloud Storage.
 
 ## Acesso
 
-O login usa somente o e-mail digitado pelo usuário. A API compara esse valor,
-sem verificar posse do endereço ou exigir senha, com a lista `ALLOWED_EMAILS`,
-separada por vírgulas e sem distinção entre maiúsculas e minúsculas.
+Cada pessoa se cadastra com nome, e-mail, senha e o código de convite
+configurado em `SIGNUP_CODE`. As contas ficam no Firebase Authentication e os
+dados de exibição em `users/{uid}` no Firestore. O frontend envia o ID token do
+Firebase no cabeçalho `Authorization` para as rotas protegidas da API.
 
-Depois do login, o frontend envia o e-mail no cabeçalho `X-User-Email` para as
-rotas protegidas da API. Esse fluxo é intencionalmente baseado apenas na
-allowlist configurada.
+Na tela inicial, use "Criar conta" para se cadastrar; depois, entre com e-mail
+e senha. O seletor de responsável de cada categoria lista os usuários
+cadastrados.
 
 ## Instalação
 
@@ -24,10 +25,10 @@ npm install
 
 ## Desenvolvimento local
 
-Crie `functions/.env.local` (não versionado) com os e-mails autorizados:
+Crie `functions/.env.local` (não versionado) com o código de convite:
 
 ```bash
-ALLOWED_EMAILS=teste@example.com,outro@example.com
+SIGNUP_CODE=convite-local
 ```
 
 Depois, inicie os emuladores:
@@ -36,9 +37,12 @@ Depois, inicie os emuladores:
 npm run emulators
 ```
 
-O Hosting Emulator fica em `http://localhost:5002` e serve a aplicação,
+O build de desenvolvimento conecta ao emulador de Auth, então as contas criadas
+localmente ficam só no emulador. O Hosting Emulator fica em
+`http://localhost:5002` e serve a aplicação,
 incluindo o proxy de `/api/**` para as Functions. Os demais serviços usam:
 
+- Auth: `9099`
 - Functions: `5001`
 - Firestore: `8080`
 - Storage: `9199`
@@ -46,14 +50,15 @@ incluindo o proxy de `/api/**` para as Functions. Os demais serviços usam:
 
 ## Produção
 
-No deploy, configure `ALLOWED_EMAILS` como variável do ambiente. O acesso
-direto de clientes ao Firestore e ao Storage é bloqueado pelas regras; as
-operações passam pela API e pela allowlist de e-mails.
+No deploy, configure `SIGNUP_CODE` como variável do repositório e habilite o
+provedor e-mail/senha no Firebase Authentication. O acesso direto de clientes
+ao Firestore e ao Storage é bloqueado pelas regras; as operações passam pela
+API, que exige um usuário autenticado e cadastrado.
 
 ## Arquitetura
 
 ```text
-Angular ── X-User-Email ──► Firebase Hosting ── /api/** ──► Express / Functions
+Angular ──── ID token ────► Firebase Hosting ── /api/** ──► Express / Functions
                                                                ├── Firestore
                                                                └── Cloud Storage
 ```

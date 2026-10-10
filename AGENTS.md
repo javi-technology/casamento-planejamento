@@ -14,7 +14,7 @@ fornecedores/despesas por categoria e armazenar contratos em PDF.
 - **Hospedagem:** Firebase Hosting; `/api/**` é encaminhado para a Function.
 
 ```text
-Angular ── X-User-Email ──► Firebase Hosting ── /api/** ──► Express / Functions
+Angular ──── ID token ────► Firebase Hosting ── /api/** ──► Express / Functions
                                                                ├── Firestore
                                                                └── Cloud Storage
 ```
@@ -26,14 +26,18 @@ clientes: toda operação passa pela API.
 
 ```text
 src/app/
-  app.component.*            Shell da aplicação (login, layout, resumo)
+  app.component.*            Shell da aplicação (login/cadastro, layout, resumo)
   budget-store.service.ts    Store com signals: estado e regras de cálculo do orçamento
   models.ts                  Tipos de domínio e categorias padrão
   components/                category-table, expense-section
-  core/                      api.service (HTTP), auth.service, auth.interceptor
+  core/                      api.service (HTTP), auth.service, auth.interceptor,
+                             firebase-auth.client (único ponto que usa o SDK do
+                             Firebase), firebase.config
 functions/src/
   index.ts                   App Express, rotas e tratamento de erros
-  middleware/auth.middleware.ts   Valida X-User-Email contra a allowlist
+  firestore.ts               Instância do Firestore (banco nomeado)
+  middleware/auth.middleware.ts   Valida o ID token e exige cadastro em `users`
+  user/                      cadastro (signup), serviço e validação de usuários
   budget/                    controller, service, validation, defaults, types
   contract/                  upload/download/remoção de contratos (busboy + Storage)
   api.spec.ts                Testes da API (jest + supertest)
@@ -41,33 +45,54 @@ functions/src/
 
 ### Rotas da API
 
-Públicas: `GET /api/health`, `POST /api/login`.
+Públicas: `GET /api/health`, `POST /api/signup`.
 Protegidas (middleware de auth): `GET /api/me`, `GET|PUT /api/budget`,
 `POST /api/budget/import`, `POST /api/expenses`,
 `PUT|DELETE /api/expenses/:id`,
 `POST|GET|DELETE /api/expenses/:id/contract`.
 
-`GET /api/budget` também devolve `responsibles` (e-mails de `ALLOWED_EMAILS`),
-usados no seletor de responsável por categoria (`Category.responsible`,
-opcional), e `userNames` (e-mail em minúsculas → nome, só dos responsáveis com
-nome configurado). `GET /api/me` devolve `{ email, name }`; sem nome
-configurado, `name` repete o e-mail. `PUT /api/budget` e `POST /api/budget/import` rejeitam responsável
-fora dessa lista.
+`GET /api/me` devolve `{ id, email, name }`. `GET /api/budget` também devolve
+`users` (`{ id, name, email }` dos cadastrados, ordenados por nome), usados no
+seletor de responsável por categoria. `Category.responsible` (opcional) guarda
+o `id` do usuário; `PUT /api/budget` e `POST /api/budget/import` rejeitam valor
+que não seja de um usuário cadastrado (uma atribuição já salva que não mudou é
+aceita).
+
+Orçamentos antigos guardavam o e-mail do responsável. Na leitura (e na
+importação), um e-mail que corresponde a um usuário cadastrado vira o `id`
+dele; os demais ficam sem responsável. O valor convertido é gravado no próximo
+salvamento.
 
 ### Autenticação
 
-O login usa apenas o e-mail digitado. A API compara com `ALLOWED_EMAILS`
-(separada por vírgulas, sem diferenciar maiúsculas/minúsculas). Após o login, o
-frontend envia o e-mail no cabeçalho `X-User-Email` (via `auth.interceptor`).
-Não há senha nem verificação de posse do e-mail; isso é intencional. Não
-introduza outro mecanismo sem uma issue que o peça.
+Usuários se cadastram com nome, e-mail, senha e código de convite em
+`POST /api/signup`. A API confere o código com `SIGNUP_CODE`, cria a conta no
+Firebase Authentication e grava `users/{uid}` (`{ name, email, createdAt }`) no
+Firestore. Respostas: 201, 400 (dados inválidos), 403 (código inválido ou
+`SIGNUP_CODE` ausente) e 409 (e-mail já cadastrado).
 
-### Nomes de usuário
+A conta é criada desabilitada e só é habilitada depois de gravar `users/{uid}`.
+Se um dos passos falhar, a API remove a conta incompleta e registra no log
+(`[signup] não foi possível remover a conta incompleta`, com `uid` e e-mail) se
+nem a remoção funcionou. Um novo cadastro com o mesmo e-mail descarta a conta
+que ficou desabilitada, nunca entrou e tem mais de 60 s, e repete uma vez; contas
+habilitadas, que já entraram ou recentes continuam respondendo 409.
 
-Os nomes são só de exibição; o login continua sendo o e-mail. Defina-os em
-`USER_NAMES`, com pares `e-mail:Nome` separados por vírgula. E-mails sem nome
-aparecem como e-mail. No deploy, o valor vem da variável `USER_NAMES` do
-repositório (Settings → Variables); nomes não podem conter vírgula.
+O login é feito pelo SDK do Firebase no frontend, que envia
+`Authorization: Bearer <ID token>`. O middleware valida o token com
+`verifyIdToken` (401 se ausente ou inválido) e exige o registro em
+`users/{uid}` (403 se não existir). Assim, contas criadas direto pelo SDK, sem
+o código de convite, não acessam a API.
+
+No frontend, só `core/firebase-auth.client.ts` importa o SDK (`firebase/auth`);
+o restante depende dele via `AuthService`, e os testes o substituem por um
+fake. Em modo de desenvolvimento (`ng serve` e o build usado por
+`npm run emulators`) o client conecta ao emulador de Auth (`127.0.0.1:9099`); o
+build de produção usa o Firebase Auth real. O interceptor envia o token em
+`/api/**` (exceto `/api/signup`) e encerra a sessão em respostas 401/403.
+
+Fora de escopo por enquanto: recuperação de senha, verificação de e-mail,
+edição de perfil e papéis diferentes entre usuários.
 
 ## Comandos
 
@@ -84,12 +109,21 @@ npx prettier --check .     # formatação (obrigatória no CI)
 npx prettier --write .     # corrige formatação
 ```
 
-Para rodar localmente crie `functions/.env.local` (não versionado):
+Para rodar localmente crie `functions/.env.local` (não versionado). No deploy,
+`SIGNUP_CODE` vem da variável do repositório (Settings → Variables):
 
 ```bash
-ALLOWED_EMAILS=teste@example.com,outro@example.com
-USER_NAMES=teste@example.com:Maria,outro@example.com:João
+SIGNUP_CODE=convite-local
 ```
+
+## Comunicação
+
+Toda comunicação com o usuário (responsável pelo projeto) é em **português do
+Brasil (PT-BR)**. Isso inclui respostas, perguntas, resumos, explicações,
+relatórios de progresso e qualquer texto publicado em nome dele (issues,
+comentários, PRs e mensagens de commit). Termos técnicos sem tradução usual
+(ex.: _commit_, _branch_, _pull request_) e identificadores de código ficam
+como estão.
 
 ## Convenções de código
 
@@ -118,16 +152,20 @@ issue-<n> ← branches de trabalho, uma por issue
 Passo a passo:
 
 1. Garanta uma issue (veja a seção "Issues").
-2. `git switch develop && git pull && git switch -c issue-<n>`.
-3. Desenvolva seguindo TDD (seção abaixo), com commits pequenos.
-4. Antes de abrir o PR, rode formatação, build e testes (web e functions).
-5. Abra PR `issue-<n>` → `develop`, com `Closes #<n>` na descrição.
-6. Após o merge e a validação em `develop`, abra PR `develop` → `main` para
-   liberar.
+2. Ao começar a análise, mova a issue para **Ready** (veja "Status da issue no
+   Project").
+3. `git switch develop && git pull && git switch -c issue-<n>` e mova a issue
+   para **In progress**.
+4. Desenvolva seguindo TDD (seção abaixo), com commits pequenos.
+5. Antes de abrir o PR, rode formatação, build e testes (web e functions).
+6. Abra PR `issue-<n>` → `develop`, com `Closes #<n>` na descrição, e mova a
+   issue para **In review**.
+7. Após o merge, confirme a issue em **Done**. Depois da validação em `develop`,
+   abra PR `develop` → `main` para liberar.
 
-Observação: o workflow `.github/workflows/ci-cd.yml` hoje roda em push/PR para
-`main`. Ao adotar `develop`, estenda os gatilhos de PR para incluir `develop`
-(o deploy deve continuar restrito a `main`).
+Observação: o workflow `.github/workflows/ci-cd.yml` roda em push para `main` e
+`develop` e em todo PR, inclusive PRs empilhados sobre outra branch `issue-<n>`.
+Build e testes valem para todos; o deploy continua restrito a push em `main`.
 
 Mensagens de commit seguem Conventional Commits em português
 (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`), por exemplo
@@ -182,8 +220,9 @@ Boas práticas:
 
 ### Estimate, Size e Priority
 
-Toda issue **deve** ter os três campos preenchidos (campos do GitHub Projects)
-antes de iniciar o trabalho:
+Toda issue **deve** ter os três campos preenchidos antes de iniciar o trabalho.
+São _issue fields_ da organização (não campos do Project): defina-os pela
+interface da issue ou pela API de issue fields.
 
 - **Estimate:** estimativa de esforço para entregar a issue.
 - **Size:** tamanho relativo da issue.
@@ -191,7 +230,53 @@ antes de iniciar o trabalho:
 
 Ao criar uma issue, defina os três campos. Se ela estiver sem algum deles,
 preencha-o (ou peça os valores) antes de criar a branch `issue-<n>`. Use os
-valores configurados no Project; não invente opções que ele não tenha.
+valores configurados; não invente opções. Estimate é numérico (pontos em
+Fibonacci: 1, 2, 3, 5, 8, 13), Size usa XS, S, M, L ou XL e Priority usa
+Urgent, High, Medium ou Low.
+
+### Status da issue no Project
+
+Toda issue em andamento deve refletir, no Project "Planejamento a Dois", o que
+está acontecendo de fato. Atualize o campo **Status** no momento de cada
+transição, sem deixar para o final:
+
+| Status          | Quando                                                                                       |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| **Backlog**     | Issue criada, ainda sem análise.                                                             |
+| **Ready**       | Assim que começar a analisar a issue (DOR, Estimate, Size e Priority sendo confirmados).     |
+| **In progress** | Branch `issue-<n>` criada e implementação iniciada.                                          |
+| **In review**   | PR aberto para `develop` (ou empilhado sobre outra branch).                                  |
+| **Done**        | PR mergeado em `develop`. A issue é fechada pelo `Closes #<n>`; confirme que o status mudou. |
+
+Regras:
+
+- Uma issue com sub-issues acompanha a mais atrasada delas (ex.: fica em
+  **In progress** enquanto alguma sub-issue estiver em **In progress**).
+- Se o trabalho voltar uma etapa (ex.: revisão pediu mudanças), volte o status
+  também.
+- Registre na issue, como comentário, o que mudar durante o trabalho:
+  decisões técnicas, mudanças de escopo, bloqueios e descobertas relevantes.
+- Se a issue ainda não estiver no Project, adicione-a antes de mudar o status.
+
+Comandos (`gh`):
+
+```bash
+# adicionar a issue ao Project e obter o id do item
+gh project item-add 6 --owner javi-technology \
+  --url https://github.com/javi-technology/casamento-planejamento/issues/<n> \
+  --format json --jq .id
+
+# id do item de uma issue que já está no Project
+gh project item-list 6 --owner javi-technology --format json --limit 200 \
+  --jq '.items[] | select(.content.number == <n>) | .id'
+
+# mudar o status
+gh project item-edit --id <item-id> --project-id PVT_kwDODUNtT84Blnen \
+  --field-id PVTSSF_lADODUNtT84BlnenzhkTn_0 --single-select-option-id <opção>
+```
+
+Opções de Status: Backlog `f75ad846`, Ready `61e4505c`, In progress
+`47fc9ee4`, In review `df73e18b`, Done `98236657`.
 
 ## Pull Requests
 
@@ -272,6 +357,8 @@ reais.
 ## Checklist antes do PR
 
 - [ ] Existe issue com Estimate, Size e Priority preenchidos
+- [ ] O Status da issue no Project acompanhou o trabalho (**In progress** na
+      implementação; **In review** ao abrir o PR)
 - [ ] A branch segue `issue-<n>`, saída de `develop`
 - [ ] Cada critério de aceite tem teste (RED → GREEN → REFACTOR cumprido)
 - [ ] `npx prettier --check .`
