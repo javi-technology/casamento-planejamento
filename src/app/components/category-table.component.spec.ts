@@ -78,4 +78,49 @@ describe('CategoryTableComponent', () => {
 
     expect(store.budget().categories[0].responsible).toBeUndefined();
   });
+
+  describe('layout das linhas', () => {
+    const rows = (): HTMLElement[] =>
+      Array.from(fixture.nativeElement.querySelectorAll('tbody tr'));
+
+    beforeEach(() => document.body.appendChild(fixture.nativeElement));
+    afterEach(() => fixture.nativeElement.remove());
+
+    it('mantém a mesma altura em todas as linhas, com ou sem "por convidado"', () => {
+      const heights = rows().map((row) => row.getBoundingClientRect().height);
+
+      expect(rows().length).toBeGreaterThan(1);
+      expect(new Set(heights.map(Math.round)).size).toBe(1);
+    });
+
+    it('não quebra os cabeçalhos em mais de uma linha', () => {
+      const headers = Array.from<HTMLElement>(
+        fixture.nativeElement.querySelectorAll('thead th'),
+      );
+
+      headers.forEach((th) =>
+        expect(getComputedStyle(th).whiteSpace).toBe('nowrap'),
+      );
+    });
+
+    it('alinha à direita os valores monetários com números tabulares', () => {
+      const cells = Array.from<HTMLElement>(
+        rows()[0].querySelectorAll('td[data-money]'),
+      );
+
+      expect(cells.length).toBe(6);
+      cells.forEach((td) => {
+        const style = getComputedStyle(td);
+        expect(style.textAlign).toBe('right');
+        expect(style.fontVariantNumeric).toContain('tabular-nums');
+        expect(style.whiteSpace).toBe('nowrap');
+      });
+    });
+
+    it('exibe o valor por convidado ao lado do checkbox', () => {
+      const perGuest = rows()[0].querySelector('td[data-per-guest]')!;
+
+      expect(perGuest.querySelector('input[type=checkbox]')).not.toBeNull();
+    });
+  });
 });
