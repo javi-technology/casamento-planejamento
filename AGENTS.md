@@ -28,8 +28,10 @@ clientes: toda operação passa pela API.
 src/app/
   app.component.*            Shell da aplicação (login/cadastro, layout, resumo)
   budget-store.service.ts    Store com signals: estado e regras de cálculo do orçamento
-  models.ts                  Tipos de domínio e categorias padrão
-  components/                category-table, expense-section
+  models.ts                  Tipos de domínio, categorias padrão e perfis de
+                             porcentagem (Padrão, Agressivo, Focado no básico)
+  components/                category-table, expense-section, profile-settings
+                             (aba Configurações: aplica um perfil ao % sugerido)
   core/                      api.service (HTTP), auth.service, auth.interceptor,
                              firebase-auth.client (único ponto que usa o SDK do
                              Firebase), firebase.config

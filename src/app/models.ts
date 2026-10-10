@@ -119,3 +119,97 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'aliancas', name: 'Alianças', suggestedPct: 3, perGuest: false },
   { id: 'outros', name: 'Outros', suggestedPct: 2, perGuest: false },
 ];
+
+export interface ProfileShare {
+  categoryId: string;
+  name: string;
+  pct: number;
+  /** Categoria fora das padrão, reconhecida pelo prefixo do nome. */
+  namePrefix?: string;
+}
+
+export interface PercentageProfile {
+  id: string;
+  name: string;
+  description: string;
+  shares: ProfileShare[];
+}
+
+export const slugify = (text: string): string =>
+  text
+    .toLocaleLowerCase('pt-BR')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+const ASSESSORIA_ID = 'assessoria-cerimonial';
+
+const SHARE_NAMES: Record<string, string> = {
+  ...Object.fromEntries(
+    DEFAULT_CATEGORIES.map((category) => [category.id, category.name]),
+  ),
+  [ASSESSORIA_ID]: 'Assessoria/Cerimonial',
+};
+
+const createProfile = (
+  id: string,
+  name: string,
+  description: string,
+  pcts: Record<string, number>,
+): PercentageProfile => ({
+  id,
+  name,
+  description,
+  shares: Object.keys(SHARE_NAMES).map((categoryId) => ({
+    categoryId,
+    name: SHARE_NAMES[categoryId],
+    pct: pcts[categoryId] ?? 0,
+    ...(categoryId === ASSESSORIA_ID && { namePrefix: 'assessoria' }),
+  })),
+});
+
+export const PERCENTAGE_PROFILES: PercentageProfile[] = [
+  createProfile(
+    'padrao',
+    'Padrão',
+    'Volta aos percentuais originais das categorias cadastradas.',
+    Object.fromEntries(
+      DEFAULT_CATEGORIES.map((category) => [
+        category.id,
+        category.suggestedPct,
+      ]),
+    ),
+  ),
+  createProfile(
+    'agressivo',
+    'Perfil agressivo',
+    'Concentra o orçamento na festa e na experiência dos convidados.',
+    {
+      'espaco-cerimonia': 15,
+      'buffet-comida': 28,
+      bebidas: 12,
+      'decoracao-flores': 12,
+      'fotografia-video': 10,
+      'musica-dj-banda': 10,
+      'vestido-traje': 4,
+      'convites-papelaria': 1,
+      'bolo-doces': 3,
+      lembrancinhas: 1,
+      beleza: 1,
+      aliancas: 2,
+      outros: 1,
+    },
+  ),
+  createProfile(
+    'basico',
+    'Focado no básico',
+    'Local, Decoração, Buffet e Assessoria; o restante fica em 0%.',
+    {
+      'espaco-cerimonia': 30,
+      'buffet-comida': 35,
+      'decoracao-flores': 20,
+      [ASSESSORIA_ID]: 15,
+    },
+  ),
+];
