@@ -249,6 +249,41 @@ describe('BudgetStore', () => {
       expect(pct(customId('Transporte'))).toBe(4);
     });
 
+    it('reconhece Assessoria pelo prefixo do nome', () => {
+      store.addCategory('Assessoria', 7);
+      store.addCategory('Assessoria e Cerimonial', 3);
+
+      store.applyPercentageProfile('basico');
+
+      expect(pct(customId('Assessoria'))).toBe(15);
+      expect(pct(customId('Assessoria e Cerimonial'))).toBe(3);
+    });
+
+    it('dá prioridade ao id sobre o nome nas categorias padrão', () => {
+      store.budget.update((budget) => ({
+        ...budget,
+        categories: budget.categories.map((category) =>
+          category.id === 'bebidas'
+            ? { ...category, name: 'Buffet/Comida' }
+            : category,
+        ),
+      }));
+
+      store.applyPercentageProfile('padrao');
+
+      expect(pct('bebidas')).toBe(8);
+      expect(pct('buffet-comida')).toBe(30);
+    });
+
+    it('não confunde categoria personalizada com uma padrão de mesmo nome', () => {
+      store.addCategory('Bebidas', 4);
+
+      store.applyPercentageProfile('agressivo');
+
+      expect(pct(customId('Bebidas'))).toBe(4);
+      expect(pct('bebidas')).toBe(12);
+    });
+
     it('não recria categorias removidas', () => {
       store.removeCategory('bebidas');
       const total = store.budget().categories.length;

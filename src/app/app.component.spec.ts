@@ -153,6 +153,15 @@ describe('AppComponent', () => {
       expect(basico.textContent).toContain('35%');
     });
 
+    it('mostra também as categorias que o perfil zera', () => {
+      openSettings();
+
+      const padrao = root.querySelector('[data-profile="padrao"]')!;
+      const basico = root.querySelector('[data-profile="basico"]')!;
+      expect(padrao.textContent).toContain('Assessoria/Cerimonial');
+      expect(basico.textContent).toMatch(/Bebidas\s*0%/);
+    });
+
     it('pede confirmação com a soma final e não altera ao cancelar', () => {
       openSettings();
 
