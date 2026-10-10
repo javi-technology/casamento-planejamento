@@ -2,7 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { BudgetStore, createDefaultBudget } from '../budget-store.service';
 import { ApiService } from '../core/api.service';
+import { User } from '../models';
 import { CategoryTableComponent } from './category-table.component';
+
+const MARIA: User = { id: 'uid-maria', name: 'Maria', email: 'maria@x.com' };
+const JOAO: User = { id: 'uid-joao', name: 'João', email: 'joao@x.com' };
 
 describe('CategoryTableComponent', () => {
   let fixture: ComponentFixture<CategoryTableComponent>;
@@ -23,7 +27,7 @@ describe('CategoryTableComponent', () => {
       providers: [{ provide: ApiService, useValue: api }],
     });
     store = TestBed.inject(BudgetStore);
-    store.responsibles.set(['noiva@example.com', 'noivo@example.com']);
+    store.users.set([JOAO, MARIA]);
     fixture = TestBed.createComponent(CategoryTableComponent);
     fixture.detectChanges();
   });
@@ -33,40 +37,39 @@ describe('CategoryTableComponent', () => {
     expect(selects().length).toBe(store.budget().categories.length);
   });
 
-  it('oferece "Sem responsável" e os noivos como opções', () => {
-    const labels = Array.from(selects()[0].options).map((o) => o.text.trim());
-
-    expect(labels).toEqual([
-      'Sem responsável',
-      'noiva@example.com',
-      'noivo@example.com',
-    ]);
-  });
-
-  it('exibe o nome do responsável e grava o e-mail', () => {
-    store.userNames.set({ 'noiva@example.com': 'Maria' });
-    fixture.detectChanges();
+  it('oferece "Sem responsável" e os usuários cadastrados pelo nome', () => {
     const options = Array.from(selects()[0].options);
 
     expect(options.map((o) => o.text.trim())).toEqual([
       'Sem responsável',
+      'João',
       'Maria',
-      'noivo@example.com',
     ]);
-    expect(options[1].value).toContain('noiva@example.com');
+    expect(options[2].value).toContain(MARIA.id);
   });
 
-  it('atribui o responsável escolhido à categoria', () => {
+  it('lista um usuário novo assim que ele aparece', () => {
+    store.users.set([
+      JOAO,
+      MARIA,
+      { id: 'uid-ana', name: 'Ana', email: 'ana@x.com' },
+    ]);
+    fixture.detectChanges();
+
+    expect(selects()[0].options.length).toBe(4);
+  });
+
+  it('atribui o id do usuário escolhido à categoria', () => {
     const select = selects()[0];
-    select.value = 'noivo@example.com';
+    select.value = select.options[2].value;
     select.dispatchEvent(new Event('change'));
 
-    expect(store.budget().categories[0].responsible).toBe('noivo@example.com');
+    expect(store.budget().categories[0].responsible).toBe(MARIA.id);
   });
 
   it('remove o responsável ao escolher "Sem responsável"', () => {
     store.updateCategory(store.budget().categories[0].id, {
-      responsible: 'noiva@example.com',
+      responsible: MARIA.id,
     });
     fixture.detectChanges();
     const select = selects()[0];

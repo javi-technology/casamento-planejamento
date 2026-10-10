@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { SignupInput, User } from '../models';
 import { ApiService } from './api.service';
 
 export const EMAIL_STORAGE_KEY = 'casamento-gastos:email';
@@ -9,12 +10,21 @@ export const EMAIL_STORAGE_KEY = 'casamento-gastos:email';
 export class AuthService {
   private readonly api = inject(ApiService);
   readonly email = signal(this.readStoredEmail());
+  readonly user = signal<User | null>(null);
   readonly ready = signal(true);
   readonly unauthorized = signal(false);
   readonly error = signal('');
   readonly loading = signal(false);
 
-  async login(value: string): Promise<boolean> {
+  async signup(_input: SignupInput): Promise<boolean> {
+    return false;
+  }
+
+  async idToken(): Promise<string | null> {
+    return null;
+  }
+
+  async login(value: string, _password = ''): Promise<boolean> {
     const email = value.trim().toLowerCase();
     this.loading.set(true);
     this.error.set('');
@@ -41,7 +51,7 @@ export class AuthService {
     }
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
     this.clearStoredEmail();
     this.unauthorized.set(false);
     this.error.set('');

@@ -1,7 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { BudgetResponse, Expense, WeddingBudget } from '../models';
+import {
+  BudgetResponse,
+  Expense,
+  SignupInput,
+  User,
+  WeddingBudget,
+} from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -11,8 +17,12 @@ export class ApiService {
     return this.http.post<{ email: string }>('/api/login', { email });
   }
 
-  getMe(): Observable<{ email: string }> {
-    return this.http.get<{ email: string }>('/api/me');
+  signup(_input: SignupInput): Observable<User> {
+    throw new Error('não implementado');
+  }
+
+  getMe(): Observable<User> {
+    return this.http.get<User>('/api/me');
   }
 
   getBudget(): Observable<BudgetResponse> {

@@ -6,6 +6,7 @@ import {
   CategorySummary,
   DEFAULT_CATEGORIES,
   Expense,
+  User,
   WeddingBudget,
 } from './models';
 
@@ -26,6 +27,7 @@ export class BudgetStore {
   private loadedUserId: string | null = null;
 
   readonly budget = signal<WeddingBudget>(createDefaultBudget());
+  readonly users = signal<User[]>([]);
   readonly responsibles = signal<string[]>([]);
   readonly userNames = signal<Record<string, string>>({});
   readonly saving = signal(false);

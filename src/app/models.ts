@@ -32,7 +32,21 @@ export interface WeddingBudget {
   expenses: Expense[];
 }
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface SignupInput {
+  name: string;
+  email: string;
+  password: string;
+  inviteCode: string;
+}
+
 export interface BudgetResponse extends WeddingBudget {
+  users?: User[];
   responsibles?: string[];
   userNames?: Record<string, string>;
 }
