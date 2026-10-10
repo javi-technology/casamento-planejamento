@@ -116,6 +116,15 @@ Para rodar localmente crie `functions/.env.local` (não versionado). No deploy,
 SIGNUP_CODE=convite-local
 ```
 
+## Comunicação
+
+Toda comunicação com o usuário (responsável pelo projeto) é em **português do
+Brasil (PT-BR)**. Isso inclui respostas, perguntas, resumos, explicações,
+relatórios de progresso e qualquer texto publicado em nome dele (issues,
+comentários, PRs e mensagens de commit). Termos técnicos sem tradução usual
+(ex.: _commit_, _branch_, _pull request_) e identificadores de código ficam
+como estão.
+
 ## Convenções de código
 
 - Prettier é a fonte de verdade (`.prettierrc`: aspas simples, ponto e vírgula,
@@ -143,12 +152,16 @@ issue-<n> ← branches de trabalho, uma por issue
 Passo a passo:
 
 1. Garanta uma issue (veja a seção "Issues").
-2. `git switch develop && git pull && git switch -c issue-<n>`.
-3. Desenvolva seguindo TDD (seção abaixo), com commits pequenos.
-4. Antes de abrir o PR, rode formatação, build e testes (web e functions).
-5. Abra PR `issue-<n>` → `develop`, com `Closes #<n>` na descrição.
-6. Após o merge e a validação em `develop`, abra PR `develop` → `main` para
-   liberar.
+2. Ao começar a análise, mova a issue para **Ready** (veja "Status da issue no
+   Project").
+3. `git switch develop && git pull && git switch -c issue-<n>` e mova a issue
+   para **In progress**.
+4. Desenvolva seguindo TDD (seção abaixo), com commits pequenos.
+5. Antes de abrir o PR, rode formatação, build e testes (web e functions).
+6. Abra PR `issue-<n>` → `develop`, com `Closes #<n>` na descrição, e mova a
+   issue para **In review**.
+7. Após o merge, confirme a issue em **Done**. Depois da validação em `develop`,
+   abra PR `develop` → `main` para liberar.
 
 Observação: o workflow `.github/workflows/ci-cd.yml` roda em push para `main` e
 `develop` e em todo PR, inclusive PRs empilhados sobre outra branch `issue-<n>`.
@@ -207,8 +220,9 @@ Boas práticas:
 
 ### Estimate, Size e Priority
 
-Toda issue **deve** ter os três campos preenchidos (campos do GitHub Projects)
-antes de iniciar o trabalho:
+Toda issue **deve** ter os três campos preenchidos antes de iniciar o trabalho.
+São _issue fields_ da organização (não campos do Project): defina-os pela
+interface da issue ou pela API de issue fields.
 
 - **Estimate:** estimativa de esforço para entregar a issue.
 - **Size:** tamanho relativo da issue.
@@ -216,7 +230,53 @@ antes de iniciar o trabalho:
 
 Ao criar uma issue, defina os três campos. Se ela estiver sem algum deles,
 preencha-o (ou peça os valores) antes de criar a branch `issue-<n>`. Use os
-valores configurados no Project; não invente opções que ele não tenha.
+valores configurados; não invente opções. Estimate é numérico (pontos em
+Fibonacci: 1, 2, 3, 5, 8, 13), Size usa XS, S, M, L ou XL e Priority usa
+Urgent, High, Medium ou Low.
+
+### Status da issue no Project
+
+Toda issue em andamento deve refletir, no Project "Planejamento a Dois", o que
+está acontecendo de fato. Atualize o campo **Status** no momento de cada
+transição, sem deixar para o final:
+
+| Status          | Quando                                                                                       |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| **Backlog**     | Issue criada, ainda sem análise.                                                             |
+| **Ready**       | Assim que começar a analisar a issue (DOR, Estimate, Size e Priority sendo confirmados).     |
+| **In progress** | Branch `issue-<n>` criada e implementação iniciada.                                          |
+| **In review**   | PR aberto para `develop` (ou empilhado sobre outra branch).                                  |
+| **Done**        | PR mergeado em `develop`. A issue é fechada pelo `Closes #<n>`; confirme que o status mudou. |
+
+Regras:
+
+- Uma issue com sub-issues acompanha a mais atrasada delas (ex.: fica em
+  **In progress** enquanto alguma sub-issue estiver em **In progress**).
+- Se o trabalho voltar uma etapa (ex.: revisão pediu mudanças), volte o status
+  também.
+- Registre na issue, como comentário, o que mudar durante o trabalho:
+  decisões técnicas, mudanças de escopo, bloqueios e descobertas relevantes.
+- Se a issue ainda não estiver no Project, adicione-a antes de mudar o status.
+
+Comandos (`gh`):
+
+```bash
+# adicionar a issue ao Project e obter o id do item
+gh project item-add 6 --owner javi-technology \
+  --url https://github.com/javi-technology/casamento-planejamento/issues/<n> \
+  --format json --jq .id
+
+# id do item de uma issue que já está no Project
+gh project item-list 6 --owner javi-technology --format json --limit 200 \
+  --jq '.items[] | select(.content.number == <n>) | .id'
+
+# mudar o status
+gh project item-edit --id <item-id> --project-id PVT_kwDODUNtT84Blnen \
+  --field-id PVTSSF_lADODUNtT84BlnenzhkTn_0 --single-select-option-id <opção>
+```
+
+Opções de Status: Backlog `f75ad846`, Ready `61e4505c`, In progress
+`47fc9ee4`, In review `df73e18b`, Done `98236657`.
 
 ## Pull Requests
 
@@ -297,6 +357,8 @@ reais.
 ## Checklist antes do PR
 
 - [ ] Existe issue com Estimate, Size e Priority preenchidos
+- [ ] O Status da issue no Project acompanhou o trabalho (**In progress** na
+      implementação; **In review** ao abrir o PR)
 - [ ] A branch segue `issue-<n>`, saída de `develop`
 - [ ] Cada critério de aceite tem teste (RED → GREEN → REFACTOR cumprido)
 - [ ] `npx prettier --check .`
