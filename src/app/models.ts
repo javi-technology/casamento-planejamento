@@ -47,8 +47,6 @@ export interface SignupInput {
 
 export interface BudgetResponse extends WeddingBudget {
   users?: User[];
-  responsibles?: string[];
-  userNames?: Record<string, string>;
 }
 
 export interface CategorySummary extends Category {

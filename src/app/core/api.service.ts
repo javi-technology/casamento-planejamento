@@ -13,12 +13,8 @@ import {
 export class ApiService {
   private readonly http = inject(HttpClient);
 
-  login(email: string): Observable<{ email: string }> {
-    return this.http.post<{ email: string }>('/api/login', { email });
-  }
-
-  signup(_input: SignupInput): Observable<User> {
-    throw new Error('não implementado');
+  signup(input: SignupInput): Observable<User> {
+    return this.http.post<User>('/api/signup', input);
   }
 
   getMe(): Observable<User> {
