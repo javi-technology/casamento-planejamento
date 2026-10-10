@@ -143,3 +143,10 @@ export function validateExpense(
 export function isNonNegativeNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
+
+export function migrateResponsibles<T extends { responsible?: string }>(
+  categories: T[],
+  _users: { id: string; email: string }[],
+): T[] {
+  return categories;
+}
