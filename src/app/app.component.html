@@ -4,7 +4,7 @@
       Carregando seu planejamento…
     </div>
   </main>
-} @else if (!auth.email()) {
+} @else if (!auth.user()) {
   <main
     class="flex min-h-screen items-center justify-center bg-gradient-to-br from-blush-100 via-stone-50 to-stone-100 p-6"
   >
@@ -23,37 +23,137 @@
         Gastos do Casamento
       </h1>
       <p class="mt-3 text-slate-600">
-        Informe seu e-mail para acessar o orçamento e os contratos.
+        @if (authMode() === 'login') {
+          Entre com seu e-mail e senha para acessar o orçamento e os contratos.
+        } @else {
+          Crie sua conta com o código de convite que você recebeu.
+        }
       </p>
       @if (auth.error()) {
         <div
           class="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
         >
           {{ auth.error() }}
+          @if (auth.canRetry()) {
+            <button
+              class="mt-2 block w-full font-semibold underline"
+              type="button"
+              (click)="retryLoadUser()"
+            >
+              Tentar novamente
+            </button>
+          }
         </div>
       }
-      <form class="mt-6 text-left" (ngSubmit)="submitLogin()">
-        <label class="text-sm font-semibold text-slate-700">
-          E-mail
-          <input
-            class="field mt-1"
-            type="email"
-            name="email"
-            [(ngModel)]="loginEmail"
-            required
-            autofocus
-            autocomplete="email"
-            placeholder="voce@example.com"
-          />
-        </label>
+      @if (authMode() === 'login') {
+        <form class="mt-6 space-y-3 text-left" (ngSubmit)="submitLogin()">
+          <label class="block text-sm font-semibold text-slate-700">
+            E-mail
+            <input
+              class="field mt-1"
+              type="email"
+              name="email"
+              [(ngModel)]="loginForm.email"
+              required
+              autofocus
+              autocomplete="email"
+              placeholder="voce@example.com"
+            />
+          </label>
+          <label class="block text-sm font-semibold text-slate-700">
+            Senha
+            <input
+              class="field mt-1"
+              type="password"
+              name="password"
+              [(ngModel)]="loginForm.password"
+              required
+              autocomplete="current-password"
+            />
+          </label>
+          <button
+            class="button-primary mt-2 w-full"
+            type="submit"
+            [disabled]="auth.loading()"
+          >
+            {{ auth.loading() ? 'Entrando…' : 'Entrar' }}
+          </button>
+        </form>
         <button
-          class="button-primary mt-4 w-full"
-          type="submit"
-          [disabled]="auth.loading()"
+          class="mt-4 text-sm font-semibold text-blush-600 hover:underline"
+          type="button"
+          (click)="switchAuthMode('signup')"
         >
-          {{ auth.loading() ? 'Entrando…' : 'Entrar' }}
+          Criar conta
         </button>
-      </form>
+      } @else {
+        <form class="mt-6 space-y-3 text-left" (ngSubmit)="submitSignup()">
+          <label class="block text-sm font-semibold text-slate-700">
+            Nome
+            <input
+              class="field mt-1"
+              type="text"
+              name="name"
+              [(ngModel)]="signupForm.name"
+              required
+              autofocus
+              autocomplete="name"
+            />
+          </label>
+          <label class="block text-sm font-semibold text-slate-700">
+            E-mail
+            <input
+              class="field mt-1"
+              type="email"
+              name="email"
+              [(ngModel)]="signupForm.email"
+              required
+              autocomplete="email"
+              placeholder="voce@example.com"
+            />
+          </label>
+          <label class="block text-sm font-semibold text-slate-700">
+            Senha
+            <input
+              class="field mt-1"
+              type="password"
+              name="password"
+              [(ngModel)]="signupForm.password"
+              required
+              minlength="6"
+              autocomplete="new-password"
+            />
+            <span class="mt-1 block text-xs font-normal text-slate-500">
+              Mínimo de 6 caracteres.
+            </span>
+          </label>
+          <label class="block text-sm font-semibold text-slate-700">
+            Código de convite
+            <input
+              class="field mt-1"
+              type="text"
+              name="inviteCode"
+              [(ngModel)]="signupForm.inviteCode"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <button
+            class="button-primary mt-2 w-full"
+            type="submit"
+            [disabled]="auth.loading()"
+          >
+            {{ auth.loading() ? 'Criando conta…' : 'Cadastrar' }}
+          </button>
+        </form>
+        <button
+          class="mt-4 text-sm font-semibold text-blush-600 hover:underline"
+          type="button"
+          (click)="switchAuthMode('login')"
+        >
+          Já tenho conta
+        </button>
+      }
     </section>
   </main>
 } @else {
@@ -82,7 +182,7 @@
           <div
             class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500"
           >
-            <span>{{ store.displayName(auth.email() ?? '') }}</span>
+            <span>{{ auth.user()?.name }}</span>
             @if (store.saving()) {
               <span
                 class="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700"

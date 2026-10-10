@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
-    branches:
-      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -110,6 +109,5 @@ jobs:
 
       - name: Deploy to Firebase Hosting
         run: |
-          echo "ALLOWED_EMAILS=${{ vars.ALLOWED_EMAILS }}" > functions/.env.javitech-8797d
-          echo 'USER_NAMES="${{ vars.USER_NAMES }}"' >> functions/.env.javitech-8797d
+          echo 'SIGNUP_CODE="${{ vars.SIGNUP_CODE }}"' > functions/.env.javitech-8797d
           npx firebase-tools@15 deploy --only hosting,functions --force

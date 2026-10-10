@@ -15,6 +15,7 @@ import { AuthService } from './core/auth.service';
 import { WeddingBudget } from './models';
 
 export type AppTab = 'budget' | 'guests';
+export type AuthMode = 'login' | 'signup';
 
 @Component({
   selector: 'app-root',
@@ -38,23 +39,40 @@ export class AppComponent {
     { id: 'guests', label: 'Convidados' },
   ];
   readonly activeTab = signal<AppTab>('budget');
-  loginEmail = '';
+  readonly authMode = signal<AuthMode>('login');
+  loginForm = { email: '', password: '' };
+  signupForm = { name: '', email: '', password: '', inviteCode: '' };
   showClearConfirmation = false;
   importError = '';
 
   constructor() {
     effect(() => {
-      if (this.auth.ready() && this.auth.email()) {
-        void this.store.load(this.auth.email() ?? undefined);
+      const user = this.auth.user();
+      if (user) {
+        void this.store.load(user.id);
       }
     });
   }
 
   async submitLogin(): Promise<void> {
-    if (!this.loginEmail.trim()) {
+    const { email, password } = this.loginForm;
+    if (!email.trim() || !password) {
       return;
     }
-    await this.auth.login(this.loginEmail);
+    await this.auth.login(email, password);
+  }
+
+  async submitSignup(): Promise<void> {
+    await this.auth.signup({ ...this.signupForm });
+  }
+
+  retryLoadUser(): Promise<void> {
+    return this.auth.retry();
+  }
+
+  switchAuthMode(mode: AuthMode): void {
+    this.authMode.set(mode);
+    this.auth.error.set('');
   }
 
   updateGuests(value: string | number): void {

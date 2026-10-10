@@ -152,50 +152,26 @@ describe('BudgetStore', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
-  it('carrega os possíveis responsáveis sem misturá-los ao orçamento', async () => {
-    api.getBudget.and.returnValue(
-      of({
-        ...createDefaultBudget(),
-        responsibles: ['noiva@example.com', 'noivo@example.com'],
-      }),
-    );
+  it('carrega os usuários cadastrados sem misturá-los ao orçamento', async () => {
+    const users = [{ id: 'uid-maria', name: 'Maria', email: 'maria@x.com' }];
+    api.getBudget.and.returnValue(of({ ...createDefaultBudget(), users }));
 
     await store.load();
 
-    expect(store.responsibles()).toEqual([
-      'noiva@example.com',
-      'noivo@example.com',
-    ]);
-    expect('responsibles' in store.budget()).toBeFalse();
-  });
-
-  it('carrega os nomes dos usuários e usa o e-mail quando não há nome', async () => {
-    api.getBudget.and.returnValue(
-      of({
-        ...createDefaultBudget(),
-        responsibles: ['noiva@example.com', 'noivo@example.com'],
-        userNames: { 'noiva@example.com': 'Maria' },
-      }),
-    );
-
-    await store.load();
-
-    expect(store.displayName('noiva@example.com')).toBe('Maria');
-    expect(store.displayName('NOIVA@example.com')).toBe('Maria');
-    expect(store.displayName('noivo@example.com')).toBe('noivo@example.com');
-    expect('userNames' in store.budget()).toBeFalse();
+    expect(store.users()).toEqual(users);
+    expect('users' in store.budget()).toBeFalse();
   });
 
   it('define o responsável de uma categoria e salva no servidor', fakeAsync(() => {
     const categoryId = store.budget().categories[0].id;
     api.updateBudget.and.callFake((budget) => of({ ...budget, expenses: [] }));
 
-    store.updateCategory(categoryId, { responsible: 'noiva@example.com' });
+    store.updateCategory(categoryId, { responsible: 'uid-maria' });
     tick(500);
 
-    expect(store.budget().categories[0].responsible).toBe('noiva@example.com');
+    expect(store.budget().categories[0].responsible).toBe('uid-maria');
     expect(
       api.updateBudget.calls.mostRecent().args[0].categories[0].responsible,
-    ).toBe('noiva@example.com');
+    ).toBe('uid-maria');
   }));
 });

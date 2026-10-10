@@ -95,10 +95,8 @@
                 (ngModelChange)="updateResponsible(row.id, $event)"
               >
                 <option value="">Sem responsável</option>
-                @for (email of store.responsibles(); track email) {
-                  <option [value]="email">
-                    {{ store.displayName(email) }}
-                  </option>
+                @for (user of store.users(); track user.id) {
+                  <option [value]="user.id">{{ user.name }}</option>
                 }
               </select>
             </td>
