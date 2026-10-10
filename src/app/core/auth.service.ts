@@ -20,6 +20,7 @@ export class AuthService {
   readonly ready = signal(false);
   readonly error = signal('');
   readonly loading = signal(false);
+  readonly canRetry = signal(false);
 
   constructor() {
     this.client.onUserChanged((authUser) => void this.syncUser(authUser));
@@ -59,6 +60,8 @@ export class AuthService {
     await this.client.signOut();
     this.user.set(null);
   }
+
+  async retry(): Promise<void> {}
 
   idToken(): Promise<string | null> {
     return this.client.getIdToken();

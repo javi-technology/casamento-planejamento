@@ -15,6 +15,8 @@ function fakeAuth(user: User | null) {
     ready: signal(true),
     error: signal(''),
     loading: signal(false),
+    canRetry: signal(false),
+    retry: jasmine.createSpy('retry').and.resolveTo(),
     login: jasmine.createSpy('login').and.resolveTo(true),
     signup: jasmine.createSpy('signup').and.resolveTo(true),
     logout: jasmine.createSpy('logout').and.resolveTo(),
@@ -207,6 +209,16 @@ describe('AppComponent sem sessão', () => {
 
     expect(input('inviteCode')).toBeNull();
     expect(input('password')).not.toBeNull();
+  });
+
+  it('oferece tentar novamente quando o usuário não pôde ser carregado', () => {
+    expect(button('Tentar novamente')).toBeUndefined();
+
+    auth.canRetry.set(true);
+    fixture.detectChanges();
+    button('Tentar novamente')!.click();
+
+    expect(auth.retry).toHaveBeenCalled();
   });
 
   it('exibe o erro de autenticação', () => {

@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { User } from '../models';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
@@ -83,6 +83,93 @@ describe('AuthService', () => {
     expect(client.signOut).toHaveBeenCalled();
     expect(service.user()).toBeNull();
     expect(service.error()).toBe('Usuário não cadastrado');
+    expect(service.canRetry()).toBeFalse();
+  });
+
+  it('encerra a sessão quando a API recusa o token (401)', async () => {
+    api.getMe.and.returnValue(throwError(() => httpError(401)));
+
+    client.emit({ uid: 'uid-maria' });
+    await settle();
+
+    expect(client.signOut).toHaveBeenCalled();
+    expect(service.user()).toBeNull();
+  });
+
+  it('descarta a resposta de /api/me que chega depois de sair', async () => {
+    const pending = new Subject<User>();
+    api.getMe.and.returnValue(pending);
+    client.emit({ uid: 'uid-maria' });
+
+    await service.logout();
+    pending.next(MARIA);
+    pending.complete();
+    await settle();
+
+    expect(service.user()).toBeNull();
+  });
+
+  it('ignora a resposta de uma sessão anterior quando o usuário muda', async () => {
+    const first = new Subject<User>();
+    const second = new Subject<User>();
+    api.getMe.and.returnValues(first, second);
+    client.emit({ uid: 'uid-ana' });
+    client.emit({ uid: 'uid-maria' });
+
+    second.next(MARIA);
+    await settle();
+    first.next({ id: 'uid-ana', name: 'Ana', email: 'ana@x.com' });
+    await settle();
+
+    expect(service.user()).toEqual(MARIA);
+  });
+
+  it('descarta o erro de uma sessão anterior sem encerrar a atual', async () => {
+    const first = new Subject<User>();
+    api.getMe.and.returnValues(first, of(MARIA));
+    client.emit({ uid: 'uid-ana' });
+    client.emit({ uid: 'uid-maria' });
+    await settle();
+
+    first.error(httpError(403));
+    await settle();
+
+    expect(client.signOut).not.toHaveBeenCalled();
+    expect(service.user()).toEqual(MARIA);
+  });
+
+  it('mantém a sessão do Firebase quando /api/me falha por erro temporário', async () => {
+    for (const status of [0, 500, 503]) {
+      client.signOut.calls.reset();
+      api.getMe.and.returnValue(throwError(() => httpError(status)));
+
+      client.emit({ uid: 'uid-maria' });
+      await settle();
+
+      expect(client.signOut).not.toHaveBeenCalled();
+      expect(service.user()).toBeNull();
+      expect(service.ready()).toBeTrue();
+      expect(service.canRetry()).toBeTrue();
+      expect(service.error()).toBe(
+        'Não foi possível carregar seu usuário. Tente novamente.',
+      );
+    }
+  });
+
+  it('carrega o usuário ao tentar novamente com a sessão mantida', async () => {
+    api.getMe.and.returnValues(
+      throwError(() => httpError(503)),
+      of(MARIA),
+    );
+    client.emit({ uid: 'uid-maria' });
+    await settle();
+
+    await service.retry();
+
+    expect(service.user()).toEqual(MARIA);
+    expect(service.error()).toBe('');
+    expect(service.canRetry()).toBeFalse();
+    expect(client.signOut).not.toHaveBeenCalled();
   });
 
   it('entra com e-mail normalizado e senha', async () => {
