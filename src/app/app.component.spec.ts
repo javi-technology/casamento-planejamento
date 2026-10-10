@@ -110,6 +110,78 @@ describe('AppComponent', () => {
     expect(visible('[data-guests-tab]')).toBeFalse();
   });
 
+  describe('aba Configurações', () => {
+    const store = (): BudgetStore => TestBed.inject(BudgetStore);
+    const pct = (id: string): number | undefined =>
+      store()
+        .budget()
+        .categories.find((category) => category.id === id)?.suggestedPct;
+    const button = (scope: string, label: string): HTMLButtonElement =>
+      Array.from(
+        root.querySelectorAll<HTMLButtonElement>(`${scope} button`),
+      ).find((item) => item.textContent?.trim() === label)!;
+    const openSettings = (): void => {
+      tab('Configurações')!.click();
+      fixture.detectChanges();
+    };
+    const apply = (profile: string): void => {
+      button(`[data-profile="${profile}"]`, 'Aplicar').click();
+      fixture.detectChanges();
+    };
+
+    it('aparece depois de Convidados e esconde o orçamento ao abrir', () => {
+      expect(tab('Configurações')).toBeDefined();
+      expect(visible('[data-settings-tab]')).toBeFalse();
+
+      openSettings();
+
+      expect(tab('Configurações')?.getAttribute('aria-current')).toBe('true');
+      expect(visible('[data-settings-tab]')).toBeTrue();
+      expect(visible('app-category-table')).toBeFalse();
+    });
+
+    it('lista os perfis com nome, descrição e percentuais', () => {
+      openSettings();
+
+      const cards = root.querySelectorAll('[data-profile]');
+      expect(cards.length).toBe(3);
+      const basico = root.querySelector('[data-profile="basico"]')!;
+      expect(basico.textContent).toContain('Focado no básico');
+      expect(basico.textContent).toContain('Buffet/Comida');
+      expect(basico.textContent).toContain('35%');
+    });
+
+    it('pede confirmação com a soma final e não altera ao cancelar', () => {
+      openSettings();
+
+      apply('basico');
+
+      expect(visible('[data-profile-confirmation]')).toBeTrue();
+      expect(
+        root.querySelector('[data-profile-confirmation]')!.textContent,
+      ).toContain('100%');
+      expect(pct('buffet-comida')).toBe(30);
+
+      button('[data-profile-confirmation]', 'Cancelar').click();
+      fixture.detectChanges();
+
+      expect(visible('[data-profile-confirmation]')).toBeFalse();
+      expect(pct('buffet-comida')).toBe(30);
+    });
+
+    it('aplica o perfil ao confirmar', () => {
+      openSettings();
+
+      apply('basico');
+      button('[data-profile-confirmation]', 'Aplicar perfil').click();
+      fixture.detectChanges();
+
+      expect(visible('[data-profile-confirmation]')).toBeFalse();
+      expect(pct('buffet-comida')).toBe(35);
+      expect(pct('bebidas')).toBe(0);
+    });
+  });
+
   it('não anuncia semântica de abas que não implementa', () => {
     expect(root.querySelector('[role="tablist"], [role="tab"]')).toBeNull();
   });
