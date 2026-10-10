@@ -173,7 +173,7 @@ describe('ExpenseSectionComponent - layout da lista', () => {
 
   it('usa a mesma definição de colunas em todas as linhas', () => {
     const templates = rows().map((row) =>
-      Array.from(row.classList).filter((c) => c.startsWith('lg:grid-cols-')),
+      Array.from(row.classList).filter((c) => c.startsWith('xl:grid-cols-')),
     );
 
     expect(templates.length).toBe(2);
