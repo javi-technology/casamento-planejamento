@@ -1,3 +1,5 @@
+import { CurrencyPipe } from '@angular/common';
+import { LOCALE_ID } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { BudgetStore, createDefaultBudget } from '../budget-store.service';
@@ -117,10 +119,54 @@ describe('CategoryTableComponent', () => {
       });
     });
 
-    it('exibe o valor por convidado ao lado do checkbox', () => {
-      const perGuest = rows()[0].querySelector('td[data-per-guest]')!;
+    describe('valor por convidado', () => {
+      const rowOf = (name: string): HTMLElement =>
+        rows().find((row) => row.textContent!.includes(name))!;
+      const perGuestCell = (name: string): HTMLElement =>
+        rowOf(name).querySelector('td[data-per-guest]')!;
+      const checkbox = (name: string): HTMLInputElement =>
+        perGuestCell(name).querySelector('input[type=checkbox]')!;
+      const formatted = (id: string): string =>
+        new CurrencyPipe(TestBed.inject(LOCALE_ID)).transform(
+          store.categorySummaries().find((row) => row.id === id)!
+            .perGuestAmount,
+          'BRL',
+        )!;
 
-      expect(perGuest.querySelector('input[type=checkbox]')).not.toBeNull();
+      it('mostra o valor formatado ao lado do checkbox quando habilitado', () => {
+        const category = store.budget().categories.find((c) => c.perGuest)!;
+
+        expect(perGuestCell(category.name).textContent).toContain(
+          formatted(category.id),
+        );
+      });
+
+      it('mostra travessão quando desabilitado', () => {
+        const category = store.budget().categories.find((c) => !c.perGuest)!;
+
+        expect(perGuestCell(category.name).textContent!.trim()).toBe('—');
+      });
+
+      it('atualiza o valor ao alternar o checkbox', () => {
+        const category = store.budget().categories.find((c) => !c.perGuest)!;
+        checkbox(category.name).click();
+        fixture.detectChanges();
+
+        expect(perGuestCell(category.name).textContent).toContain(
+          formatted(category.id),
+        );
+      });
+
+      it('alinha o valor à direita com números tabulares', () => {
+        const category = store.budget().categories.find((c) => c.perGuest)!;
+        const amount = perGuestCell(category.name).querySelector<HTMLElement>(
+          '[data-per-guest-amount]',
+        )!;
+        const style = getComputedStyle(amount);
+
+        expect(style.textAlign).toBe('right');
+        expect(style.fontVariantNumeric).toContain('tabular-nums');
+      });
     });
   });
 });

@@ -126,18 +126,23 @@
               />
             </td>
             <td data-per-guest class="whitespace-nowrap px-3">
-              <label class="flex items-center gap-2 text-slate-600">
+              <label class="flex items-center gap-3 text-slate-600">
                 <input
                   type="checkbox"
                   [attr.aria-label]="'Por convidado: ' + row.name"
                   [ngModel]="row.perGuest"
                   (ngModelChange)="updatePerGuest(row.id, $event)"
                 />
-                @if (row.perGuest) {
-                  {{ row.perGuestAmount | currency: 'BRL' }}
-                } @else {
-                  <span class="text-slate-400">—</span>
-                }
+                <span
+                  data-per-guest-amount
+                  class="block min-w-[6rem] flex-1 text-right tabular-nums"
+                >
+                  @if (row.perGuest) {
+                    {{ row.perGuestAmount | currency: 'BRL' }}
+                  } @else {
+                    <span class="text-slate-400">—</span>
+                  }
+                </span>
               </label>
             </td>
             <td
