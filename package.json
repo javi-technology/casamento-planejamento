@@ -9,7 +9,7 @@
     "build:development": "ng build --configuration development",
     "emulators": "npm run build:functions && npm run build:development && npx firebase-tools@15 emulators:start",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
+    "test": "ng test --browsers ChromeHeadless",
     "test:functions": "npm --prefix functions test"
   },
   "private": true,
