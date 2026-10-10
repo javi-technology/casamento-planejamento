@@ -254,11 +254,29 @@ export class BudgetStore {
     if (!profile) {
       return null;
     }
-    return this.budget().categories.map((category) => {
-      const share = profile.shares.find(
-        ({ categoryId }) =>
-          categoryId === category.id || categoryId === slugify(category.name),
-      );
+    const categories = this.budget().categories;
+    const byId = new Map(
+      categories.map((category) => [
+        category,
+        profile.shares.find(({ categoryId }) => categoryId === category.id),
+      ]),
+    );
+    const claimed = new Set<string>();
+    return categories.map((category) => {
+      let share = byId.get(category);
+      if (!share) {
+        const slug = slugify(category.name);
+        share = profile.shares.find(
+          (candidate) =>
+            candidate.namePrefix &&
+            !claimed.has(candidate.categoryId) &&
+            !categories.some(({ id }) => id === candidate.categoryId) &&
+            slug.startsWith(candidate.namePrefix),
+        );
+        if (share) {
+          claimed.add(share.categoryId);
+        }
+      }
       return share ? { ...category, suggestedPct: share.pct } : category;
     });
   }

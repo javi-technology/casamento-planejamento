@@ -277,10 +277,13 @@ describe('BudgetStore', () => {
 
     it('não confunde categoria personalizada com uma padrão de mesmo nome', () => {
       store.addCategory('Bebidas', 4);
+      const custom = store
+        .budget()
+        .categories.find((category) => category.id.startsWith('bebidas-'))!;
 
       store.applyPercentageProfile('agressivo');
 
-      expect(pct(customId('Bebidas'))).toBe(4);
+      expect(pct(custom.id)).toBe(4);
       expect(pct('bebidas')).toBe(12);
     });
 

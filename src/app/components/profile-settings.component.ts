@@ -9,10 +9,7 @@ import { PERCENTAGE_PROFILES, PercentageProfile } from '../models';
 })
 export class ProfileSettingsComponent {
   readonly store = inject(BudgetStore);
-  readonly profiles = PERCENTAGE_PROFILES.map((profile) => ({
-    ...profile,
-    shares: profile.shares.filter((share) => share.pct > 0),
-  }));
+  readonly profiles = PERCENTAGE_PROFILES;
   readonly pending = signal<PercentageProfile | null>(null);
   readonly pendingTotal = computed(() => {
     const profile = this.pending();

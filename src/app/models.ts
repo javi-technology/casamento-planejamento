@@ -124,6 +124,8 @@ export interface ProfileShare {
   categoryId: string;
   name: string;
   pct: number;
+  /** Categoria fora das padrão, reconhecida pelo prefixo do nome. */
+  namePrefix?: string;
 }
 
 export interface PercentageProfile {
@@ -163,6 +165,7 @@ const createProfile = (
     categoryId,
     name: SHARE_NAMES[categoryId],
     pct: pcts[categoryId] ?? 0,
+    ...(categoryId === ASSESSORIA_ID && { namePrefix: 'assessoria' }),
   })),
 });
 
