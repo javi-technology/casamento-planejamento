@@ -128,6 +128,12 @@ export class BudgetStore {
     this.scheduleBudgetSave();
   }
 
+  applyPercentageProfile(profileId: string): void {}
+
+  profileTotal(profileId: string): number {
+    return 0;
+  }
+
   addCategory(name: string, suggestedPct = 0, perGuest = false): void {
     const id = `${name
       .toLocaleLowerCase('pt-BR')
