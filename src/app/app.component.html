@@ -387,6 +387,10 @@
           confirmou presença.
         </p>
       </section>
+
+      <div [hidden]="activeTab() !== 'settings'">
+        <app-profile-settings />
+      </div>
       <footer class="mt-8 text-center text-xs text-slate-500">
         Seus dados ficam salvos com segurança no Firebase.
       </footer>

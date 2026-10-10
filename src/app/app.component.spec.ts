@@ -120,6 +120,8 @@ describe('AppComponent', () => {
       Array.from(
         root.querySelectorAll<HTMLButtonElement>(`${scope} button`),
       ).find((item) => item.textContent?.trim() === label)!;
+    const confirmation = (): Element | null =>
+      root.querySelector('[data-profile-confirmation]');
     const openSettings = (): void => {
       tab('Configurações')!.click();
       fixture.detectChanges();
@@ -156,16 +158,15 @@ describe('AppComponent', () => {
 
       apply('basico');
 
-      expect(visible('[data-profile-confirmation]')).toBeTrue();
-      expect(
-        root.querySelector('[data-profile-confirmation]')!.textContent,
-      ).toContain('100%');
+      expect(confirmation()).not.toBeNull();
+      // O orçamento do teste não tem Assessoria: 30 + 35 + 20 = 85%.
+      expect(confirmation()!.textContent).toContain('85%');
       expect(pct('buffet-comida')).toBe(30);
 
       button('[data-profile-confirmation]', 'Cancelar').click();
       fixture.detectChanges();
 
-      expect(visible('[data-profile-confirmation]')).toBeFalse();
+      expect(confirmation()).toBeNull();
       expect(pct('buffet-comida')).toBe(30);
     });
 
@@ -176,7 +177,7 @@ describe('AppComponent', () => {
       button('[data-profile-confirmation]', 'Aplicar perfil').click();
       fixture.detectChanges();
 
-      expect(visible('[data-profile-confirmation]')).toBeFalse();
+      expect(confirmation()).toBeNull();
       expect(pct('buffet-comida')).toBe(35);
       expect(pct('bebidas')).toBe(0);
     });
