@@ -66,6 +66,10 @@ export class AppComponent {
     await this.auth.signup({ ...this.signupForm });
   }
 
+  retryLoadUser(): Promise<void> {
+    return this.auth.retry();
+  }
+
   switchAuthMode(mode: AuthMode): void {
     this.authMode.set(mode);
     this.auth.error.set('');

@@ -21,9 +21,16 @@ export class AuthService {
   readonly error = signal('');
   readonly loading = signal(false);
   readonly canRetry = signal(false);
+  // Identifica a sincronização mais recente. Respostas de sessões anteriores
+  // (ex.: /api/me que chega depois de "Sair") são descartadas.
+  private syncId = 0;
+  private authUser: AuthUser | null = null;
 
   constructor() {
-    this.client.onUserChanged((authUser) => void this.syncUser(authUser));
+    this.client.onUserChanged((authUser) => {
+      this.authUser = authUser;
+      void this.syncUser(authUser);
+    });
   }
 
   async login(email: string, password: string): Promise<boolean> {
@@ -57,17 +64,23 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
+    this.syncId++;
+    this.canRetry.set(false);
     await this.client.signOut();
     this.user.set(null);
   }
 
-  async retry(): Promise<void> {}
+  async retry(): Promise<void> {
+    await this.syncUser(this.authUser);
+  }
 
   idToken(): Promise<string | null> {
     return this.client.getIdToken();
   }
 
   private async syncUser(authUser: AuthUser | null): Promise<void> {
+    const syncId = ++this.syncId;
+    this.canRetry.set(false);
     if (!authUser) {
       this.user.set(null);
       this.ready.set(true);
@@ -75,16 +88,35 @@ export class AuthService {
     }
 
     try {
-      this.user.set(await firstValueFrom(this.api.getMe()));
+      this.error.set('');
+      const user = await firstValueFrom(this.api.getMe());
+      if (syncId === this.syncId) {
+        this.user.set(user);
+      }
     } catch (error) {
-      this.error.set(
-        (error as HttpErrorResponse).status === 403
-          ? 'Usuário não cadastrado'
-          : 'Não foi possível carregar seu usuário. Entre novamente.',
-      );
-      await this.logout();
+      if (syncId !== this.syncId) {
+        return;
+      }
+      const status = (error as HttpErrorResponse).status;
+      if (status === 401 || status === 403) {
+        this.error.set(
+          status === 403
+            ? 'Usuário não cadastrado'
+            : 'Sessão inválida ou expirada',
+        );
+        await this.logout();
+      } else {
+        // Falha de rede ou da API não invalida a sessão: o usuário só precisa
+        // tentar de novo, sem digitar a senha outra vez.
+        this.error.set(
+          'Não foi possível carregar seu usuário. Tente novamente.',
+        );
+        this.canRetry.set(true);
+      }
     } finally {
-      this.ready.set(true);
+      if (syncId === this.syncId) {
+        this.ready.set(true);
+      }
     }
   }
 }

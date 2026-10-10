@@ -214,6 +214,7 @@ describe('AppComponent sem sessão', () => {
   it('oferece tentar novamente quando o usuário não pôde ser carregado', () => {
     expect(button('Tentar novamente')).toBeUndefined();
 
+    auth.error.set('Não foi possível carregar seu usuário. Tente novamente.');
     auth.canRetry.set(true);
     fixture.detectChanges();
     button('Tentar novamente')!.click();

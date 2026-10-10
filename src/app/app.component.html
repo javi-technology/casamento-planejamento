@@ -34,6 +34,15 @@
           class="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
         >
           {{ auth.error() }}
+          @if (auth.canRetry()) {
+            <button
+              class="mt-2 block w-full font-semibold underline"
+              type="button"
+              (click)="retryLoadUser()"
+            >
+              Tentar novamente
+            </button>
+          }
         </div>
       }
       @if (authMode() === 'login') {
