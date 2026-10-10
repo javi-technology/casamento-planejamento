@@ -12,6 +12,10 @@ configurado em `SIGNUP_CODE`. As contas ficam no Firebase Authentication e os
 dados de exibição em `users/{uid}` no Firestore. O frontend envia o ID token do
 Firebase no cabeçalho `Authorization` para as rotas protegidas da API.
 
+Na tela inicial, use "Criar conta" para se cadastrar; depois, entre com e-mail
+e senha. O seletor de responsável de cada categoria lista os usuários
+cadastrados.
+
 ## Instalação
 
 ```bash
@@ -33,7 +37,9 @@ Depois, inicie os emuladores:
 npm run emulators
 ```
 
-O Hosting Emulator fica em `http://localhost:5002` e serve a aplicação,
+O build de desenvolvimento conecta ao emulador de Auth, então as contas criadas
+localmente ficam só no emulador. O Hosting Emulator fica em
+`http://localhost:5002` e serve a aplicação,
 incluindo o proxy de `/api/**` para as Functions. Os demais serviços usam:
 
 - Auth: `9099`

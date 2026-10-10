@@ -26,11 +26,13 @@ clientes: toda operação passa pela API.
 
 ```text
 src/app/
-  app.component.*            Shell da aplicação (login, layout, resumo)
+  app.component.*            Shell da aplicação (login/cadastro, layout, resumo)
   budget-store.service.ts    Store com signals: estado e regras de cálculo do orçamento
   models.ts                  Tipos de domínio e categorias padrão
   components/                category-table, expense-section
-  core/                      api.service (HTTP), auth.service, auth.interceptor
+  core/                      api.service (HTTP), auth.service, auth.interceptor,
+                             firebase-auth.client (único ponto que usa o SDK do
+                             Firebase), firebase.config
 functions/src/
   index.ts                   App Express, rotas e tratamento de erros
   firestore.ts               Instância do Firestore (banco nomeado)
@@ -74,6 +76,13 @@ O login é feito pelo SDK do Firebase no frontend, que envia
 `verifyIdToken` (401 se ausente ou inválido) e exige o registro em
 `users/{uid}` (403 se não existir). Assim, contas criadas direto pelo SDK, sem
 o código de convite, não acessam a API.
+
+No frontend, só `core/firebase-auth.client.ts` importa o SDK (`firebase/auth`);
+o restante depende dele via `AuthService`, e os testes o substituem por um
+fake. Em modo de desenvolvimento (`ng serve` e o build usado por
+`npm run emulators`) o client conecta ao emulador de Auth (`127.0.0.1:9099`); o
+build de produção usa o Firebase Auth real. O interceptor envia o token em
+`/api/**` (exceto `/api/signup`) e encerra a sessão em respostas 401/403.
 
 Fora de escopo por enquanto: recuperação de senha, verificação de e-mail,
 edição de perfil e papéis diferentes entre usuários.
