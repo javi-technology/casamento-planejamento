@@ -1,0 +1,67 @@
+<section class="card" data-settings-tab>
+  <p class="text-xs font-bold uppercase tracking-[0.18em] text-blush-600">
+    Configurações
+  </p>
+  <h2 class="mt-1 text-xl font-bold text-slate-900">Perfis de porcentagem</h2>
+  <p class="mt-2 text-sm text-slate-600">
+    Aplique um perfil para redefinir o % sugerido das categorias com um clique.
+    Responsável, cobrança por convidado e fornecedores não mudam.
+  </p>
+
+  <div class="mt-5 grid gap-4 md:grid-cols-3">
+    @for (profile of profiles; track profile.id) {
+      <article
+        class="flex flex-col rounded-2xl border border-stone-200 p-4"
+        [attr.data-profile]="profile.id"
+      >
+        <h3 class="text-base font-bold text-slate-900">{{ profile.name }}</h3>
+        <p class="mt-1 text-sm text-slate-600">{{ profile.description }}</p>
+        <ul class="mt-3 flex-1 space-y-1 text-sm text-slate-700">
+          @for (share of profile.shares; track share.categoryId) {
+            <li class="flex justify-between gap-2">
+              <span>{{ share.name }}</span>
+              <span class="font-semibold">{{ share.pct }}%</span>
+            </li>
+          }
+        </ul>
+        <button
+          class="button-primary mt-4"
+          type="button"
+          (click)="pending.set(profile)"
+        >
+          Aplicar
+        </button>
+      </article>
+    }
+  </div>
+</section>
+
+@if (pending(); as profile) {
+  <div
+    class="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/40 p-4"
+    data-profile-confirmation
+  >
+    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+      <h2 class="text-lg font-bold text-slate-900">
+        Aplicar o perfil {{ profile.name }}?
+      </h2>
+      <p class="mt-2 text-sm text-slate-600">
+        O % sugerido das categorias correspondentes será substituído. Categorias
+        que o perfil não conhece mantêm o valor atual. A soma ficará em
+        <strong>{{ pendingTotal() }}%</strong>.
+      </p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          class="button-secondary"
+          type="button"
+          (click)="pending.set(null)"
+        >
+          Cancelar
+        </button>
+        <button class="button-primary" type="button" (click)="confirm()">
+          Aplicar perfil
+        </button>
+      </div>
+    </div>
+  </div>
+}

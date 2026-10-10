@@ -10,11 +10,12 @@ import {
 import { FormsModule } from '@angular/forms';
 import { BudgetStore } from './budget-store.service';
 import { CategoryTableComponent } from './components/category-table.component';
+import { ProfileSettingsComponent } from './components/profile-settings.component';
 import { ExpenseSectionComponent } from './components/expense-section.component';
 import { AuthService } from './core/auth.service';
 import { WeddingBudget } from './models';
 
-export type AppTab = 'budget' | 'guests';
+export type AppTab = 'budget' | 'guests' | 'settings';
 export type AuthMode = 'login' | 'signup';
 
 @Component({
@@ -26,6 +27,7 @@ export type AuthMode = 'login' | 'signup';
     CurrencyPipe,
     ExpenseSectionComponent,
     FormsModule,
+    ProfileSettingsComponent,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
@@ -37,6 +39,7 @@ export class AppComponent {
   readonly tabs: { id: AppTab; label: string }[] = [
     { id: 'budget', label: 'Orçamento' },
     { id: 'guests', label: 'Convidados' },
+    { id: 'settings', label: 'Configurações' },
   ];
   readonly activeTab = signal<AppTab>('budget');
   readonly authMode = signal<AuthMode>('login');

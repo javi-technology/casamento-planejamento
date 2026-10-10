@@ -6,8 +6,10 @@ import {
   CategorySummary,
   DEFAULT_CATEGORIES,
   Expense,
+  PERCENTAGE_PROFILES,
   User,
   WeddingBudget,
+  slugify,
 } from './models';
 
 export const STORAGE_KEY = 'casamento-gastos:v1';
@@ -128,13 +130,24 @@ export class BudgetStore {
     this.scheduleBudgetSave();
   }
 
+  applyPercentageProfile(profileId: string): void {
+    const categories = this.categoriesWithProfile(profileId);
+    if (!categories) {
+      return;
+    }
+    this.budget.update((budget) => ({ ...budget, categories }));
+    this.scheduleBudgetSave();
+  }
+
+  profileTotal(profileId: string): number {
+    return (this.categoriesWithProfile(profileId) ?? []).reduce(
+      (total, category) => total + category.suggestedPct,
+      0,
+    );
+  }
+
   addCategory(name: string, suggestedPct = 0, perGuest = false): void {
-    const id = `${name
-      .toLocaleLowerCase('pt-BR')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')}-${Date.now()}`;
+    const id = `${slugify(name)}-${Date.now()}`;
     this.budget.update((budget) => ({
       ...budget,
       categories: [
@@ -234,6 +247,38 @@ export class BudgetStore {
   discardLegacy(): void {
     this.removeLegacyData();
     this.migrationCandidate.set(null);
+  }
+
+  private categoriesWithProfile(profileId: string): Category[] | null {
+    const profile = PERCENTAGE_PROFILES.find(({ id }) => id === profileId);
+    if (!profile) {
+      return null;
+    }
+    const categories = this.budget().categories;
+    const byId = new Map(
+      categories.map((category) => [
+        category,
+        profile.shares.find(({ categoryId }) => categoryId === category.id),
+      ]),
+    );
+    const claimed = new Set<string>();
+    return categories.map((category) => {
+      let share = byId.get(category);
+      if (!share) {
+        const slug = slugify(category.name);
+        share = profile.shares.find(
+          (candidate) =>
+            candidate.namePrefix &&
+            !claimed.has(candidate.categoryId) &&
+            !categories.some(({ id }) => id === candidate.categoryId) &&
+            slug.startsWith(candidate.namePrefix),
+        );
+        if (share) {
+          claimed.add(share.categoryId);
+        }
+      }
+      return share ? { ...category, suggestedPct: share.pct } : category;
+    });
   }
 
   private scheduleBudgetSave(): void {

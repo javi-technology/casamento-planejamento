@@ -1,6 +1,7 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { ApiService } from './core/api.service';
+import { DEFAULT_CATEGORIES, PERCENTAGE_PROFILES } from './models';
 import {
   BudgetStore,
   STORAGE_KEY,
@@ -174,4 +175,154 @@ describe('BudgetStore', () => {
       api.updateBudget.calls.mostRecent().args[0].categories[0].responsible,
     ).toBe('uid-maria');
   }));
+
+  describe('perfis de porcentagem', () => {
+    const pct = (id: string): number | undefined =>
+      store.budget().categories.find((category) => category.id === id)
+        ?.suggestedPct;
+    const customId = (name: string): string =>
+      store.budget().categories.find((category) => category.name === name)!.id;
+
+    it('cada perfil soma 100%', () => {
+      for (const profile of PERCENTAGE_PROFILES) {
+        const total = profile.shares.reduce((sum, share) => sum + share.pct, 0);
+        expect(total).withContext(profile.name).toBe(100);
+      }
+    });
+
+    it('o perfil Padrão restaura os percentuais de DEFAULT_CATEGORIES', () => {
+      for (const category of store.budget().categories) {
+        store.updateCategory(category.id, { suggestedPct: 1 });
+      }
+
+      store.applyPercentageProfile('padrao');
+
+      expect(
+        store.budget().categories.map((category) => category.suggestedPct),
+      ).toEqual(DEFAULT_CATEGORIES.map((category) => category.suggestedPct));
+    });
+
+    it('o perfil Focado no básico zera o restante e reconhece a Assessoria criada pelo usuário', () => {
+      store.addCategory('Assessoria/cerimonial', 7);
+
+      store.applyPercentageProfile('basico');
+
+      expect(pct('espaco-cerimonia')).toBe(30);
+      expect(pct('buffet-comida')).toBe(35);
+      expect(pct('decoracao-flores')).toBe(20);
+      expect(pct(customId('Assessoria/cerimonial'))).toBe(15);
+      expect(pct('bebidas')).toBe(0);
+      expect(store.suggestedPctTotal()).toBe(100);
+    });
+
+    it('mantém perGuest, responsável, nome e despesas', () => {
+      store.updateCategory('buffet-comida', { responsible: 'uid-maria' });
+      store.budget.update((budget) => ({
+        ...budget,
+        expenses: [
+          {
+            id: '1',
+            categoryId: 'buffet-comida',
+            supplier: 'Buffet X',
+            estimated: 100,
+            contracted: 90,
+            paid: 10,
+          },
+        ],
+      }));
+      const before = store.budget().categories;
+
+      store.applyPercentageProfile('agressivo');
+
+      const after = store.budget().categories;
+      expect(after.map(({ suggestedPct, ...rest }) => rest)).toEqual(
+        before.map(({ suggestedPct, ...rest }) => rest),
+      );
+      expect(store.budget().expenses.length).toBe(1);
+    });
+
+    it('mantém o percentual de categorias que o perfil não conhece', () => {
+      store.addCategory('Transporte', 4);
+
+      store.applyPercentageProfile('agressivo');
+
+      expect(pct(customId('Transporte'))).toBe(4);
+    });
+
+    it('reconhece Assessoria pelo prefixo do nome', () => {
+      store.addCategory('Assessoria', 7);
+      store.addCategory('Assessoria e Cerimonial', 3);
+
+      store.applyPercentageProfile('basico');
+
+      expect(pct(customId('Assessoria'))).toBe(15);
+      expect(pct(customId('Assessoria e Cerimonial'))).toBe(3);
+    });
+
+    it('dá prioridade ao id sobre o nome nas categorias padrão', () => {
+      store.budget.update((budget) => ({
+        ...budget,
+        categories: budget.categories.map((category) =>
+          category.id === 'bebidas'
+            ? { ...category, name: 'Buffet/Comida' }
+            : category,
+        ),
+      }));
+
+      store.applyPercentageProfile('padrao');
+
+      expect(pct('bebidas')).toBe(8);
+      expect(pct('buffet-comida')).toBe(30);
+    });
+
+    it('não confunde categoria personalizada com uma padrão de mesmo nome', () => {
+      store.addCategory('Bebidas', 4);
+      const custom = store
+        .budget()
+        .categories.find((category) => category.id.startsWith('bebidas-'))!;
+
+      store.applyPercentageProfile('agressivo');
+
+      expect(pct(custom.id)).toBe(4);
+      expect(pct('bebidas')).toBe(12);
+    });
+
+    it('não recria categorias removidas', () => {
+      store.removeCategory('bebidas');
+      const total = store.budget().categories.length;
+
+      store.applyPercentageProfile('agressivo');
+
+      expect(store.budget().categories.length).toBe(total);
+      expect(pct('bebidas')).toBeUndefined();
+    });
+
+    it('calcula a soma que o perfil produz sem aplicá-lo', () => {
+      store.addCategory('Transporte', 4);
+
+      expect(store.profileTotal('agressivo')).toBe(104);
+      expect(pct('buffet-comida')).toBe(30);
+    });
+
+    it('ignora perfil inexistente', () => {
+      store.applyPercentageProfile('inexistente');
+
+      expect(pct('buffet-comida')).toBe(30);
+    });
+
+    it('salva o orçamento no servidor', fakeAsync(() => {
+      api.updateBudget.and.callFake((budget) =>
+        of({ ...budget, expenses: [] }),
+      );
+
+      store.applyPercentageProfile('basico');
+      tick(500);
+
+      const saved = api.updateBudget.calls.mostRecent().args[0];
+      expect(
+        saved.categories.find((category) => category.id === 'buffet-comida')
+          ?.suggestedPct,
+      ).toBe(35);
+    }));
+  });
 });

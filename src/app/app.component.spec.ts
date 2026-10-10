@@ -110,6 +110,88 @@ describe('AppComponent', () => {
     expect(visible('[data-guests-tab]')).toBeFalse();
   });
 
+  describe('aba Configurações', () => {
+    const store = (): BudgetStore => TestBed.inject(BudgetStore);
+    const pct = (id: string): number | undefined =>
+      store()
+        .budget()
+        .categories.find((category) => category.id === id)?.suggestedPct;
+    const button = (scope: string, label: string): HTMLButtonElement =>
+      Array.from(
+        root.querySelectorAll<HTMLButtonElement>(`${scope} button`),
+      ).find((item) => item.textContent?.trim() === label)!;
+    const confirmation = (): Element | null =>
+      root.querySelector('[data-profile-confirmation]');
+    const openSettings = (): void => {
+      tab('Configurações')!.click();
+      fixture.detectChanges();
+    };
+    const apply = (profile: string): void => {
+      button(`[data-profile="${profile}"]`, 'Aplicar').click();
+      fixture.detectChanges();
+    };
+
+    it('aparece depois de Convidados e esconde o orçamento ao abrir', () => {
+      expect(tab('Configurações')).toBeDefined();
+      expect(visible('[data-settings-tab]')).toBeFalse();
+
+      openSettings();
+
+      expect(tab('Configurações')?.getAttribute('aria-current')).toBe('true');
+      expect(visible('[data-settings-tab]')).toBeTrue();
+      expect(visible('app-category-table')).toBeFalse();
+    });
+
+    it('lista os perfis com nome, descrição e percentuais', () => {
+      openSettings();
+
+      const cards = root.querySelectorAll('[data-profile]');
+      expect(cards.length).toBe(3);
+      const basico = root.querySelector('[data-profile="basico"]')!;
+      expect(basico.textContent).toContain('Focado no básico');
+      expect(basico.textContent).toContain('Buffet/Comida');
+      expect(basico.textContent).toContain('35%');
+    });
+
+    it('mostra também as categorias que o perfil zera', () => {
+      openSettings();
+
+      const padrao = root.querySelector('[data-profile="padrao"]')!;
+      const basico = root.querySelector('[data-profile="basico"]')!;
+      expect(padrao.textContent).toContain('Assessoria/Cerimonial');
+      expect(basico.textContent).toMatch(/Bebidas\s*0%/);
+    });
+
+    it('pede confirmação com a soma final e não altera ao cancelar', () => {
+      openSettings();
+
+      apply('basico');
+
+      expect(confirmation()).not.toBeNull();
+      // O orçamento do teste não tem Assessoria: 30 + 35 + 20 = 85%.
+      expect(confirmation()!.textContent).toContain('85%');
+      expect(pct('buffet-comida')).toBe(30);
+
+      button('[data-profile-confirmation]', 'Cancelar').click();
+      fixture.detectChanges();
+
+      expect(confirmation()).toBeNull();
+      expect(pct('buffet-comida')).toBe(30);
+    });
+
+    it('aplica o perfil ao confirmar', () => {
+      openSettings();
+
+      apply('basico');
+      button('[data-profile-confirmation]', 'Aplicar perfil').click();
+      fixture.detectChanges();
+
+      expect(confirmation()).toBeNull();
+      expect(pct('buffet-comida')).toBe(35);
+      expect(pct('bebidas')).toBe(0);
+    });
+  });
+
   it('não anuncia semântica de abas que não implementa', () => {
     expect(root.querySelector('[role="tablist"], [role="tab"]')).toBeNull();
   });
