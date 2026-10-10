@@ -124,6 +124,7 @@ describe('ExpenseSectionComponent - upload de contrato', () => {
 
 describe('ExpenseSectionComponent - layout da lista', () => {
   let fixture: ComponentFixture<ExpenseSectionComponent>;
+  let store: BudgetStore;
 
   const rows = (): HTMLElement[] =>
     Array.from(fixture.nativeElement.querySelectorAll('[data-expense-row]'));
@@ -137,7 +138,7 @@ describe('ExpenseSectionComponent - layout da lista', () => {
       imports: [ExpenseSectionComponent],
       providers: [{ provide: ApiService, useValue: api }],
     });
-    const store = TestBed.inject(BudgetStore);
+    store = TestBed.inject(BudgetStore);
     const budget = createDefaultBudget();
     const expenses: Expense[] = [
       {
@@ -207,5 +208,61 @@ describe('ExpenseSectionComponent - layout da lista', () => {
     for (const badge of badges) {
       expect(badge.className).not.toMatch(/blush|rose|red/);
     }
+  });
+
+  describe('com valores altos e nomes longos', () => {
+    const LONG_NAME =
+      'Cerimonial e Assessoria de Eventos Maria das Graças Oliveira & Filhos';
+
+    beforeEach(() => {
+      const budget = store.budget();
+      store.budget.set({
+        ...budget,
+        expenses: [
+          {
+            ...budget.expenses[1],
+            supplier: LONG_NAME,
+            estimated: 100000000,
+            contracted: 100000000,
+            paid: 100000000,
+          },
+        ],
+      });
+      fixture.detectChanges();
+    });
+
+    it('não corta o nome do fornecedor com reticências', () => {
+      const name = fixture.nativeElement.querySelector(
+        '[data-column="supplier"] h3',
+      ) as HTMLElement;
+      const style = getComputedStyle(name);
+
+      expect(name.textContent).toContain(LONG_NAME);
+      expect(style.textOverflow).not.toBe('ellipsis');
+      expect(style.overflowWrap).toBe('break-word');
+    });
+
+    it('mantém cada valor monetário em uma linha, com o valor completo', () => {
+      for (const column of ['estimated', 'contracted', 'paid']) {
+        const value = fixture.nativeElement.querySelector(
+          `[data-column="${column}"] [data-value]`,
+        ) as HTMLElement;
+
+        expect(getComputedStyle(value).whiteSpace).toBe('nowrap');
+        expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth);
+      }
+    });
+
+    it('oferece o texto completo nos campos que podem ser truncados', () => {
+      const description = fixture.nativeElement.querySelector(
+        '[data-column="supplier"] p',
+      ) as HTMLElement;
+      const badge = fixture.nativeElement.querySelector(
+        '[data-category-badge]',
+      ) as HTMLElement;
+
+      expect(description.title).toBe((description.textContent ?? '').trim());
+      expect(badge.title).toBe((badge.textContent ?? '').trim());
+    });
   });
 });
