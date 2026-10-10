@@ -108,7 +108,7 @@ describe('CategoryTableComponent', () => {
         rows()[0].querySelectorAll('td[data-money]'),
       );
 
-      expect(cells.length).toBe(6);
+      expect(cells.length).toBe(5);
       cells.forEach((td) => {
         const style = getComputedStyle(td);
         expect(style.textAlign).toBe('right');
