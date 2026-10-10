@@ -1,3 +1,5 @@
+import { CurrencyPipe } from '@angular/common';
+import { LOCALE_ID } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { BudgetStore, createDefaultBudget } from '../budget-store.service';
@@ -77,5 +79,94 @@ describe('CategoryTableComponent', () => {
     select.dispatchEvent(new Event('change'));
 
     expect(store.budget().categories[0].responsible).toBeUndefined();
+  });
+
+  describe('layout das linhas', () => {
+    const rows = (): HTMLElement[] =>
+      Array.from(fixture.nativeElement.querySelectorAll('tbody tr'));
+
+    beforeEach(() => document.body.appendChild(fixture.nativeElement));
+    afterEach(() => fixture.nativeElement.remove());
+
+    it('mantém a mesma altura em todas as linhas, com ou sem "por convidado"', () => {
+      const heights = rows().map((row) => row.getBoundingClientRect().height);
+
+      expect(rows().length).toBeGreaterThan(1);
+      expect(new Set(heights.map(Math.round)).size).toBe(1);
+    });
+
+    it('não quebra os cabeçalhos em mais de uma linha', () => {
+      const headers = Array.from<HTMLElement>(
+        fixture.nativeElement.querySelectorAll('thead th'),
+      );
+
+      headers.forEach((th) =>
+        expect(getComputedStyle(th).whiteSpace).toBe('nowrap'),
+      );
+    });
+
+    it('alinha à direita os valores monetários com números tabulares', () => {
+      const cells = Array.from<HTMLElement>(
+        rows()[0].querySelectorAll('td[data-money]'),
+      );
+
+      expect(cells.length).toBe(5);
+      cells.forEach((td) => {
+        const style = getComputedStyle(td);
+        expect(style.textAlign).toBe('right');
+        expect(style.fontVariantNumeric).toContain('tabular-nums');
+        expect(style.whiteSpace).toBe('nowrap');
+      });
+    });
+
+    describe('valor por convidado', () => {
+      const rowOf = (name: string): HTMLElement =>
+        rows().find((row) => row.textContent!.includes(name))!;
+      const perGuestCell = (name: string): HTMLElement =>
+        rowOf(name).querySelector('td[data-per-guest]')!;
+      const checkbox = (name: string): HTMLInputElement =>
+        perGuestCell(name).querySelector('input[type=checkbox]')!;
+      const formatted = (id: string): string =>
+        new CurrencyPipe(TestBed.inject(LOCALE_ID)).transform(
+          store.categorySummaries().find((row) => row.id === id)!
+            .perGuestAmount,
+          'BRL',
+        )!;
+
+      it('mostra o valor formatado ao lado do checkbox quando habilitado', () => {
+        const category = store.budget().categories.find((c) => c.perGuest)!;
+
+        expect(perGuestCell(category.name).textContent).toContain(
+          formatted(category.id),
+        );
+      });
+
+      it('mostra travessão quando desabilitado', () => {
+        const category = store.budget().categories.find((c) => !c.perGuest)!;
+
+        expect(perGuestCell(category.name).textContent!.trim()).toBe('—');
+      });
+
+      it('atualiza o valor ao alternar o checkbox', () => {
+        const category = store.budget().categories.find((c) => !c.perGuest)!;
+        checkbox(category.name).click();
+        fixture.detectChanges();
+
+        expect(perGuestCell(category.name).textContent).toContain(
+          formatted(category.id),
+        );
+      });
+
+      it('alinha o valor à direita com números tabulares', () => {
+        const category = store.budget().categories.find((c) => c.perGuest)!;
+        const amount = perGuestCell(category.name).querySelector<HTMLElement>(
+          '[data-per-guest-amount]',
+        )!;
+        const style = getComputedStyle(amount);
+
+        expect(style.textAlign).toBe('right');
+        expect(style.fontVariantNumeric).toContain('tabular-nums');
+      });
+    });
   });
 });

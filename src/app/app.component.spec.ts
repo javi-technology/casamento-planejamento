@@ -72,6 +72,18 @@ describe('AppComponent', () => {
     ).toBeTruthy();
   });
 
+  it('separa as seções de fornecedores e de categorias com espaço vertical', () => {
+    const expenses = root.querySelector('app-expense-section') as HTMLElement;
+    const categories = root.querySelector('app-category-table') as HTMLElement;
+
+    expect(getComputedStyle(expenses).display).toBe('block');
+    expect(getComputedStyle(categories).display).toBe('block');
+    expect(
+      categories.getBoundingClientRect().top -
+        expenses.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(16);
+  });
+
   it('exibe o nome do usuário no cabeçalho em vez do e-mail', async () => {
     await fixture.whenStable();
     fixture.detectChanges();
